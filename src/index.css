@@ -1,3 +1,5 @@
+
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -13,6 +15,8 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+
+
 a {
   font-weight: 500;
   color: #646cff;
@@ -24,8 +28,7 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -52,6 +55,17 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+main {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 @media (prefers-color-scheme: light) {

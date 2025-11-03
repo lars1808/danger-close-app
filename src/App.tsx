@@ -1,12 +1,111 @@
-import SquadTable from './features/squad/SquadTable';
+// src/App.tsx
+import { useState, useEffect } from "react";
+import SquadTable from "./features/squad/SquadTable";
+import LogTab from "./features/log/LogTab";
+import MissionSetup from "./features/mission/MissionSetup";
+import "./styles/danger-close.css";
+import * as T from "./features/squad/types";
 
-function App() {
+type TabName = "squad" | "mission" | "engagement" | "log";
+type Theme = "default" | "terminal";
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<TabName>("squad");
+  const [logEntries, setLogEntries] = useState<T.LogEntry[]>([]);
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem("dc-theme");
+    return (saved as Theme) || "default";
+  });
+
+  // Apply theme on mount and when it changes
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "terminal") {
+      root.classList.add("theme-terminal");
+    } else {
+      root.classList.remove("theme-terminal");
+    }
+    localStorage.setItem("dc-theme", theme);
+  }, [theme]);
+
+  // Function to add a log entry (can be called from any tab)
+  function addLogEntry(text: string, source: T.LogSource = "USER") {
+    if (!text.trim()) return;
+    
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const timestamp = `${hours}:${minutes}:${seconds}`;
+
+    const newEntry: T.LogEntry = {
+      id: Date.now().toString(),
+      timestamp,
+      source,
+      text,
+      order: logEntries.length,
+    };
+    setLogEntries([...logEntries, newEntry]);
+  }
+
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Danger Close – Squad Tracker v0</h1>
-      <SquadTable />
-    </div>
+    <main>
+      <div className="dc-container">
+        {/* THEME TOGGLE */}
+        <div className="dc-theme-toggle">
+          <button
+            className={`dc-theme-btn ${theme === "default" ? "active" : ""}`}
+            onClick={() => setTheme("default")}
+            title="Default theme"
+          >
+            DEFAULT
+          </button>
+          <button
+            className={`dc-theme-btn ${theme === "terminal" ? "active" : ""}`}
+            onClick={() => setTheme("terminal")}
+            title="Terminal theme"
+          >
+            TERMINAL
+          </button>
+        </div>
+
+        <h1 className="dc-title">Danger Close – Squad Tracker v0</h1>
+        <div className="dc-subtle-rule" />
+
+        {/* TAB NAVIGATION */}
+        <nav className="dc-tab-nav">
+          <button
+            className={`dc-tab-btn ${activeTab === "squad" ? "active" : ""}`}
+            onClick={() => setActiveTab("squad")}
+          >
+            SQUAD
+          </button>
+          <button
+            className={`dc-tab-btn ${activeTab === "mission" ? "active" : ""}`}
+            onClick={() => setActiveTab("mission")}
+          >
+            MISSION
+          </button>
+          <button
+            className={`dc-tab-btn ${activeTab === "engagement" ? "active" : ""}`}
+            onClick={() => setActiveTab("engagement")}
+          >
+            ENGAGEMENT
+          </button>
+          <button
+            className={`dc-tab-btn ${activeTab === "log" ? "active" : ""}`}
+            onClick={() => setActiveTab("log")}
+          >
+            LOG
+          </button>
+        </nav>
+
+        {/* TAB CONTENT */}
+        {activeTab === "squad" && <SquadTable onAddLog={addLogEntry} />}
+        {activeTab === "mission" && <MissionSetup onAddLog={addLogEntry} />}
+        {activeTab === "engagement" && <div>Engagement Tab (coming soon)</div>}
+        {activeTab === "log" && <LogTab entries={logEntries} onUpdateEntries={setLogEntries} />}
+      </div>
+    </main>
   );
 }
-
-export default App;

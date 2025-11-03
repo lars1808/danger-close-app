@@ -1,0 +1,938 @@
+/* === DANGER CLOSE – Squad Tracker CSS ================================== */
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+/* ==================== CSS VARIABLES ==================== */
+:root {
+  --bg: #0e0f10;
+  --panel: #151617;
+  --muted: #9aa0a6;
+  --text: #e9ecef;
+  --text-dim: #c7ccd1;
+  --border: #2c2f33;
+
+  /* Accent colors */
+  --accent: #DDA15E;
+  --accent-2: #606C38;
+  --accent-3: #283618;
+
+  /* Status colors */
+  --focus: #35b0ff;
+  --ok: #58d68d;
+  --grazed: #f7dc6f;
+  --wounded: #f5b041;
+  --bleeding: #e74c3c;
+  --dead: #aab2bd;
+  
+  /* Font and effects */
+  --font-main: "Outfit", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Quantico", ui-sans-serif;
+  --font-mono: "Courier New", monospace;
+  --glow: none;
+}
+
+/* ==================== TERMINAL THEME ==================== */
+:root.theme-terminal {
+  --bg: #0a0f0a;
+  --panel: #0d1a0d;
+  --muted: #00cc00;
+  --text: #00ff00;
+  --text-dim: #00bb00;
+  --border: #003300;
+
+  /* Accent colors - all green */
+  --accent: #00ff00;
+  --accent-2: #00cc00;
+  --accent-3: #009900;
+
+  /* Status colors - green palette */
+  --focus: #00ff00;
+  --ok: #00ff00;
+  --grazed: #00cc00;
+  --wounded: #009900;
+  --bleeding: #004d00;
+  --dead: #003300;
+  
+  /* Monospace terminal font */
+--font-main: "VT323", monospace;
+  --font-display: "Courier New", "Lucida Console", monospace;
+  --font-mono: "Courier New", "Lucida Console", monospace;
+  --glow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+/* ==================== TERMINAL THEME - TYPOGRAPHY SCALING ==================== */
+:root.theme-terminal {
+  font-size: 19px; /* Base size increase */
+}
+
+:root.theme-terminal body {
+  font-size: 1.05em;
+}
+
+:root.theme-terminal .dc-title {
+  font-size: clamp(32px, 4.6vw, 64px);
+}
+
+:root.theme-terminal h1,
+:root.theme-terminal h2,
+:root.theme-terminal h3 {
+  font-size: 1.15em;
+}
+
+:root.theme-terminal .dc-table thead th {
+  font-size: 1rem;
+}
+
+:root.theme-terminal .dc-table tbody td {
+  font-size: 1rem;
+}
+
+:root.theme-terminal .dc-input,
+:root.theme-terminal .dc-select {
+  font-size: 1rem;
+}
+
+:root.theme-terminal .dc-btn {
+  font-size: 1rem;
+}
+
+:root.theme-terminal .dc-badge {
+  font-size: 0.95rem;
+}
+/* ==================== GLOBAL RESET ==================== */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-main);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+}
+
+.dc-title {
+  font-size: clamp(28px, 4vw, 56px);
+  margin: 24px 0 12px;
+  line-height: 1.1;
+  text-shadow: var(--glow);
+}
+
+.dc-subtle-rule {
+  height: 3px;
+  width: 240px;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  border-radius: 2px;
+  margin: 6px 0 18px;
+  opacity: 0.8;
+}
+
+/* ==================== LAYOUT ==================== */
+.dc-container {
+  width: min(900px, 95%);
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.dc-toolbar {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 20px;
+}
+
+/* ==================== BUTTONS ==================== */
+.dc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  gap: 8px;
+  background: #1b1d1f;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.02s ease, background 0.15s ease, border-color 0.15s ease;
+  font-size: 0.9rem;
+}
+
+.dc-btn:hover {
+  background: #212426;
+  border-color: #3a3f44;
+}
+
+.dc-btn:active {
+  transform: translateY(1px);
+}
+
+.dc-btn--sm {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.dc-btn--accent {
+  background: var(--accent-3);
+  border-color: #3b472d;
+}
+
+.dc-btn--accent:hover {
+  background: #1f2a1a;
+}
+
+/* ==================== FORM INPUTS ==================== */
+.dc-input,
+.dc-select {
+  width: 100%;
+  padding: 6px 10px;
+  background: #0c0d0e;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.dc-input::placeholder {
+  color: var(--muted);
+}
+
+.dc-input:focus,
+.dc-select:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
+}
+
+/* ==================== TABLE WRAPPER ==================== */
+.dc-table-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: visible;
+}
+
+/* ==================== TABLE ==================== */
+.dc-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+}
+
+.dc-table thead th {
+  text-align: left;
+  font-weight: 600;
+  padding: 12px 12px;
+  background: #1b1c1e;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.dc-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  overflow: visible;
+}
+
+.dc-table tbody tr:nth-child(even) {
+  background: #121314;
+}
+
+.dc-table tbody tr:hover {
+  background: #1a1c1e;
+}
+
+/* ==================== COLUMN WIDTHS ==================== */
+.dc-col-expand {
+  width: 40px;
+  text-align: center;
+  padding: 10px 8px !important;
+}
+
+.dc-col-name {
+  width: 160px;
+}
+
+.dc-col-status {
+  width: 160px;
+}
+
+.dc-td--num {
+  width: 100px;
+  text-align: center;
+}
+
+.dc-td--notes {
+  width: 160px;
+}
+
+.dc-th--center {
+  text-align: center !important;
+}
+
+/* ==================== INLINE GROUPS (for +/- controls) ==================== */
+.dc-inline-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.dc-valbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* ==================== STATUS BADGE ==================== */
+.dc-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Quantico", ui-sans-serif;
+  user-select: none;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+  min-width: 90px;
+  text-align: center;
+}
+
+.dc-badge--ok {
+  background: color-mix(in oklab, var(--ok) 25%, #111);
+  color: #dff7ea;
+}
+
+.dc-badge--grazed {
+  background: color-mix(in oklab, var(--grazed) 28%, #111);
+  color: #18190a;
+}
+
+.dc-badge--wounded {
+  background: color-mix(in oklab, var(--wounded) 30%, #111);
+  color: #1d1207;
+}
+
+.dc-badge--bleeding {
+  background: color-mix(in oklab, var(--bleeding) 26%, #111);
+  color: #180707;
+}
+
+.dc-badge--dead {
+  background: #353a40;
+  color: #cfd6dc;
+}
+
+/* ==================== EXPANDABLE ROWS ==================== */
+.dc-expand-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.dc-expand-btn:hover {
+  color: var(--focus);
+}
+
+.dc-expand-btn.expanded {
+  transform: rotate(180deg);
+}
+
+/* Gear summary line - SMALL TEXT */
+.dc-gear-summary {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+  white-space: normal;
+  line-height: 1.1;
+}
+
+/* Expanded row styling */
+.dc-expanded-row {
+  display: none;
+}
+
+.dc-expanded-row.show {
+  display: table-row;
+}
+
+.dc-expanded-content {
+  padding: 16px 12px;
+  background: #0a0b0c;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.dc-expanded-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.dc-expanded-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dc-expanded-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dc-expanded-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  background: #0c0d0e;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.dc-expanded-textarea:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
+}
+
+/* ==================== TOOLTIPS ==================== */
+.dc-tip {
+  position: relative;
+  display: inline-block;
+  z-index: 10;
+}
+
+.dc-tip__bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%);
+  width: max(260px, 30ch);
+  max-width: 380px;
+  background: #1b1c1e;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  line-height: 1.4;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.4);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: normal;
+}
+
+.dc-tip__bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: #1b1c1e;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.3));
+}
+
+.dc-tip:hover .dc-tip__bubble,
+.dc-tip:focus-within .dc-tip__bubble {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+/* ==================== CHECKBOXES ==================== */
+input[type="checkbox"] {
+  accent-color: var(--focus);
+  cursor: pointer;
+}
+
+input[type="checkbox"]:hover {
+  opacity: 0.8;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+  .dc-container {
+    width: min(100%, 98%);
+    padding: 12px 0 20px;
+  }
+
+  .dc-col-expand {
+    width: 35px;
+  }
+
+  .dc-col-name {
+    width: 120px;
+  }
+
+  .dc-col-status {
+    width: 140px;
+  }
+
+  .dc-td--num {
+    width: 80px;
+  }
+
+  .dc-table thead th {
+    padding: 10px 8px;
+    font-size: 0.85rem;
+  }
+
+  .dc-table tbody td {
+    padding: 8px 8px;
+  }
+
+  .dc-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    min-width: 80px;
+  }
+
+  .dc-btn--sm {
+    padding: 3px 6px;
+    font-size: 0.8rem;
+  }
+
+  .dc-input,
+  .dc-select {
+    font-size: 0.85rem;
+    padding: 5px 8px;
+  }
+
+  .dc-expanded-inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== TAB NAVIGATION ==================== */
+.dc-tab-nav {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+  border-bottom: 2px solid var(--border);
+}
+
+.dc-tab-btn {
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.dc-tab-btn:hover {
+  color: var(--text);
+}
+
+.dc-tab-btn.active {
+  color: var(--focus);
+  border-bottom-color: var(--focus);
+}
+
+
+/* ==================== LOG TAB ==================== */
+.dc-log-feed {
+  margin: 20px 0;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.dc-log-empty {
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+.dc-log-entry {
+  position: relative;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #121314;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  transition: background 0.15s ease;
+}
+
+.dc-log-entry:hover {
+  background: #1a1c1e;
+}
+
+.dc-log-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.dc-log-timestamp {
+  color: var(--focus);
+  font-weight: 600;
+  font-family: "Courier New", monospace;
+}
+
+.dc-log-source {
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.dc-log-source--user {
+  color: #ffa500;
+}
+
+.dc-log-source--system {
+  color: #58d68d;
+}
+
+.dc-log-text {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.dc-log-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px 8px;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.dc-log-entry:hover .dc-log-delete {
+  opacity: 1;
+}
+
+.dc-log-delete:hover {
+  color: #e74c3c;
+}
+
+/* ==================== MODAL OVERLAY ==================== */
+.dc-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dc-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.dc-modal h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.dc-modal-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  background: #0c0d0e;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  margin-bottom: 16px;
+}
+
+.dc-modal-textarea:focus {
+  border-color: var(--focus);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
+}
+
+.dc-modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.dc-modal-buttons .dc-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================== INLINE EDITING ==================== */
+.dc-log-text {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-wrap: break-word;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.dc-log-text:hover {
+  background: rgba(221, 161, 94, 0.1);
+}
+
+.dc-log-edit-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dc-log-edit-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  background: #0c0d0e;
+  color: var(--text);
+  border: 2px solid var(--focus);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.dc-log-edit-textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
+}
+
+.dc-log-edit-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.dc-log-edit-buttons .dc-btn {
+  flex: 1;
+}
+
+/* ==================== DRAG AND DROP ==================== */
+.dc-log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  user-select: none;
+  cursor: grab;
+}
+
+.dc-log-entry:active {
+  cursor: grabbing;
+}
+
+.dc-log-drag-handle {
+  color: var(--text-dim);
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: grab;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  text-align: left;
+}
+
+.dc-log-entry:hover .dc-log-drag-handle {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.dc-log-entry:active .dc-log-drag-handle {
+  cursor: grabbing;
+}
+
+/* Entry being dragged */
+.dc-log-entry--dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  border-color: var(--accent);
+  background: rgba(221, 161, 94, 0.1);
+}
+
+/* Drop target indicator */
+.dc-log-entry--drag-over {
+  border-top: 3px solid var(--focus);
+  background: rgba(53, 176, 255, 0.1);
+}
+
+/* Prevent drag when editing */
+.dc-log-entry[draggable="false"] {
+  cursor: auto;
+}
+
+/* ==================== STATUS DROPDOWN ==================== */
+.dc-status-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: #0c0d0e;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23e9ecef' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+.dc-status-select:focus {
+  border-color: var(--focus);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
+}
+
+/* Option styling - colored backgrounds */
+.dc-status-select option {
+  padding: 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.dc-status-select option[value="OK"] {
+  background: #58d68d;
+  color: #18190a;
+}
+
+.dc-status-select option[value="Grazed"] {
+  background: #f7dc6f;
+  color: #18190a;
+}
+
+.dc-status-select option[value="Wounded"] {
+  background: #f5b041;
+  color: #1d1207;
+}
+
+.dc-status-select option[value="Bleeding Out"] {
+  background: #e74c3c;
+  color: #180707;
+}
+
+.dc-status-select option[value="Dead"] {
+  background: #aab2bd;
+  color: #0a0a0a;
+}
+
+/* ==================== STATUS DROPDOWN - SELECTED STATE ==================== */
+.dc-status-select[value="OK"] {
+  background-color: color-mix(in oklab, var(--ok) 25%, #0c0d0e);
+  color: #dff7ea;
+}
+
+.dc-status-select[value="Grazed"] {
+  background-color: color-mix(in oklab, var(--grazed) 28%, #0c0d0e);
+  color: #18190a;
+}
+
+.dc-status-select[value="Wounded"] {
+  background-color: color-mix(in oklab, var(--wounded) 30%, #0c0d0e);
+  color: #1d1207;
+}
+
+.dc-status-select[value="Bleeding Out"] {
+  background-color: color-mix(in oklab, var(--bleeding) 26%, #0c0d0e);
+  color: #180707;
+}
+
+.dc-status-select[value="Dead"] {
+  background-color: #353a40;
+  color: #cfd6dc;
+}
+
+/* ==================== THEME TOGGLE ==================== */
+.dc-theme-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.dc-theme-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  background-color: #1b1d1f;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.dc-theme-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background-color: #212426;
+}
+
+.dc-theme-btn.active {
+  background-color: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  text-shadow: var(--glow);
+}
