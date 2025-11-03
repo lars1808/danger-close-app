@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as T from "../squad/types";
+import { getStoredSquadName } from "../squad/storageKeys";
 
 const MISSION_STORAGE_KEY = "danger-close-mission";
 
@@ -111,9 +112,21 @@ export default function MissionSetup(props: MissionSetupProps) {
     onAddLog("Mission parameters randomized", "SYSTEM");
   }
 
-  function handleDeploySQuad() {
-    // TODO: Implement deploy logic
-    console.log("Deploy Squad clicked");
+  function handleDeploySquad() {
+    const storedSquadName = getStoredSquadName().trim();
+    const squadName = storedSquadName || "Unnamed Squad";
+    const missionName = mission.name.trim() || "Untitled Mission";
+    const missionObjective = mission.objective.trim() || "Objective Pending";
+    const { difficulty, airspace } = mission;
+
+    setMission((prev) => ({
+      ...prev,
+      status: "active",
+      startTime: prev.startTime ?? Date.now(),
+    }));
+
+    const logMessage = `${squadName} ACTIVE ++ ${missionName} ++ ${missionObjective} ++ DIFFICULTY: ${difficulty} ++ AIRSPACE: ${airspace}`;
+    onAddLog(logMessage, "SYSTEM");
   }
 
   return (
@@ -181,7 +194,7 @@ export default function MissionSetup(props: MissionSetupProps) {
         </button>
         <button
           className="dc-btn dc-mission-btn dc-mission-btn--deploy"
-          onClick={handleDeploySQuad}
+          onClick={handleDeploySquad}
         >
           DEPLOY SQUAD
         </button>
