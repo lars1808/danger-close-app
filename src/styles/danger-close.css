@@ -149,6 +149,25 @@ h1, h2, h3 {
   margin: 12px 0 20px;
 }
 
+.dc-squad-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.dc-squad-header + .dc-toolbar {
+  margin-top: 0;
+}
+
+.dc-squad-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
 /* ==================== BUTTONS ==================== */
 .dc-btn {
   display: inline-flex;

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as T from "./types";
-
-const STORAGE_KEY = "danger-close-squad";
+import { SQUAD_STORAGE_KEY, SQUAD_NAME_STORAGE_KEY } from "./storageKeys";
 
 const defaultTroopers: T.Trooper[] = [
   { id: 1, name: "Aelius",    status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle",  armorId: "medium", biography: "" },
@@ -16,9 +15,9 @@ interface SquadTableProps {
 }
 export default function SquadTable(props: SquadTableProps) {
   const { onAddLog } = props;
-const [troopers, setTroopers] = useState<T.Trooper[]>(() => {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  const base = saved ? (JSON.parse(saved) as Partial<T.Trooper>[]) : defaultTroopers;
+  const [troopers, setTroopers] = useState<T.Trooper[]>(() => {
+    const saved = localStorage.getItem(SQUAD_STORAGE_KEY);
+    const base = saved ? (JSON.parse(saved) as Partial<T.Trooper>[]) : defaultTroopers;
     return base.map((r, i) => {
       const d = defaultTroopers[i] ?? defaultTroopers[0];
       return {
@@ -37,10 +36,15 @@ const [troopers, setTroopers] = useState<T.Trooper[]>(() => {
   });
 
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [squadName, setSquadName] = useState<string>(() => localStorage.getItem(SQUAD_NAME_STORAGE_KEY) ?? "");
 
-useEffect(() => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(troopers));
-}, [troopers]);
+  useEffect(() => {
+    localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(troopers));
+  }, [troopers]);
+
+  useEffect(() => {
+    localStorage.setItem(SQUAD_NAME_STORAGE_KEY, squadName);
+  }, [squadName]);
 
   function update<K extends keyof T.Trooper>(id: number, key: K, value: T.Trooper[K]) {
     setTroopers((prev) => prev.map((t) => (t.id === id ? { ...t, [key]: value } : t)));
@@ -58,25 +62,10 @@ useEffect(() => {
   function resetSquad() {
     if (confirm("Reset squad to defaults?")) {
       setTroopers(defaultTroopers);
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SQUAD_STORAGE_KEY);
+      setSquadName("");
+      localStorage.removeItem(SQUAD_NAME_STORAGE_KEY);
     }
-  }
-
-  function statusClass(s: T.Status) {
-    switch (s) {
-      case "OK":           return "dc-badge dc-badge--ok";
-      case "Grazed":       return "dc-badge dc-badge--grazed";
-      case "Wounded":      return "dc-badge dc-badge--wounded";
-      case "Bleeding Out": return "dc-badge dc-badge--bleeding";
-      case "Dead":         return "dc-badge dc-badge--dead";
-    }
-  }
-
-  const STATUS_ORDER: T.Status[] = ["OK", "Grazed", "Wounded", "Bleeding Out", "Dead"];
-  function shiftStatus(s: T.Status, delta: 1 | -1): T.Status {
-    const i = STATUS_ORDER.indexOf(s);
-    const j = Math.max(0, Math.min(STATUS_ORDER.length - 1, i + delta));
-    return STATUS_ORDER[j];
   }
 
   function toggleExpanded(id: number) {
@@ -91,19 +80,30 @@ useEffect(() => {
     });
   }
 
-function getGearSummary(trooper: T.Trooper): string {
-  const weapon = T.WEAPON_INDEX[trooper.weaponId]?.name ?? "Unknown";
-  const armor = T.ARMOR_INDEX[trooper.armorId]?.name ?? "Unknown";
-  const special = (trooper.specialGear ?? []).length > 0
-? (trooper.specialGear ?? []).map((id) => T.SPECIAL_GEAR_INDEX[id]?.name).join(", ")
-    : "";
-  return special ? `${weapon}, ${armor}, ${special}` : `${weapon}, ${armor}`;
-}
-
-
+  function getGearSummary(trooper: T.Trooper): string {
+    const weapon = T.WEAPON_INDEX[trooper.weaponId]?.name ?? "Unknown";
+    const armor = T.ARMOR_INDEX[trooper.armorId]?.name ?? "Unknown";
+    const special = (trooper.specialGear ?? []).length > 0
+      ? (trooper.specialGear ?? []).map((id) => T.SPECIAL_GEAR_INDEX[id]?.name).join(", ")
+      : "";
+    return special ? `${weapon}, ${armor}, ${special}` : `${weapon}, ${armor}`;
+  }
 
   return (
     <div>
+      <div className="dc-squad-header">
+        <label className="dc-squad-label" htmlFor="squad-name-input">
+          Squad Name
+        </label>
+        <input
+          id="squad-name-input"
+          className="dc-input"
+          value={squadName}
+          onChange={(e) => setSquadName(e.target.value)}
+          placeholder="Enter squad name"
+        />
+      </div>
+
       <div className="dc-toolbar">
         <button onClick={resetSquad} className="dc-btn dc-btn--accent">Reset Squad</button>
       </div>
