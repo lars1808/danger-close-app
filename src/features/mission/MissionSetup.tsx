@@ -3,8 +3,58 @@ import * as T from "../squad/types";
 
 const MISSION_STORAGE_KEY = "danger-close-mission";
 
+const MISSION_OBJECTIVES = [
+  // Seize & Secure
+  { type: "Seize & Secure", objective: "Assault" },
+  { type: "Seize & Secure", objective: "Search & Destroy" },
+  { type: "Seize & Secure", objective: "Breach" },
+  
+  // Hit & Run
+  { type: "Hit & Run", objective: "Raid" },
+  { type: "Hit & Run", objective: "Recon" },
+  { type: "Hit & Run", objective: "Extraction" },
+  { type: "Hit & Run", objective: "Recovery" },
+  { type: "Hit & Run", objective: "Sabotage" },
+  
+  // Free Roam
+  { type: "Free Roam", objective: "Kill Mission" },
+  { type: "Free Roam", objective: "Disruption" },
+  
+  // Defense
+  { type: "Defense", objective: "Siege" },
+  { type: "Defense", objective: "Evacuation" },
+  { type: "Defense", objective: "Last Stand" },
+];
+
 interface MissionSetupProps {
   onAddLog: (text: string, source: T.LogSource) => void;
+}
+
+// Helper function to roll 1d6
+function rollD6(): number {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+// Helper function to pick random objective
+function getRandomObjective(): string {
+  const randomMission = MISSION_OBJECTIVES[Math.floor(Math.random() * MISSION_OBJECTIVES.length)];
+  return `${randomMission.type} // ${randomMission.objective}`;
+}
+
+// Helper function to pick difficulty (3-in-6 Routine, 2-in-6 Hazardous, 1-in-6 Desperate)
+function getRandomDifficulty(): T.Difficulty {
+  const roll = rollD6();
+  if (roll <= 3) return "Routine";
+  if (roll <= 5) return "Hazardous";
+  return "Desperate";
+}
+
+// Helper function to pick airspace (3-in-6 Contested, 2-in-6 Clear, 1-in-6 Hostile)
+function getRandomAirspace(): T.Airspace {
+  const roll = rollD6();
+  if (roll <= 3) return "Contested";
+  if (roll <= 5) return "Clear";
+  return "Hostile";
 }
 
 export default function MissionSetup(props: MissionSetupProps) {
@@ -52,8 +102,13 @@ export default function MissionSetup(props: MissionSetupProps) {
   }
 
   function handleRandomize() {
-    // TODO: Implement randomization logic
-    console.log("Randomize clicked");
+    setMission((prev) => ({
+      ...prev,
+      objective: getRandomObjective(),
+      difficulty: getRandomDifficulty(),
+      airspace: getRandomAirspace(),
+    }));
+    onAddLog("Mission parameters randomized", "SYSTEM");
   }
 
   function handleDeploySQuad() {
