@@ -423,39 +423,13 @@ h1, h2, h3 {
 .dc-mission-sectors {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   margin-top: 8px;
-  padding: 24px 26px 28px;
-  border-radius: 16px;
-  border: 1px solid rgba(221, 161, 94, 0.16);
-  background: linear-gradient(
-    180deg,
-    rgba(18, 19, 20, 0.96) 0%,
-    rgba(18, 19, 20, 0.9) 40%,
-    rgba(12, 13, 15, 0.85) 100%
-  );
-  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.42);
-  position: relative;
-  overflow: hidden;
-}
-
-.dc-mission-sectors::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-      120% 60% at 50% 0%,
-      rgba(221, 161, 94, 0.12),
-      transparent 75%
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 30%);
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-.dc-mission-sectors > * {
-  position: relative;
-  z-index: 1;
+  padding: 20px 22px 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(14, 15, 16, 0.92), rgba(18, 19, 20, 0.7));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
 }
 
 .dc-mission-sectors-header {
@@ -479,7 +453,7 @@ h1, h2, h3 {
 
 .dc-mission-sector-list {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .dc-mission-sectors-empty {
@@ -495,117 +469,18 @@ h1, h2, h3 {
 .dc-mission-sector-card {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px 22px;
-  border-radius: 14px;
-  border: 1px solid rgba(221, 161, 94, 0.28);
-  background: linear-gradient(
-    180deg,
-    rgba(22, 23, 25, 0.92) 0%,
-    rgba(18, 20, 22, 0.88) 55%,
-    rgba(14, 15, 17, 0.85) 100%
-  );
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px);
-  cursor: grab;
-  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.dc-mission-sector-card:focus-within {
-  border-color: rgba(221, 161, 94, 0.55);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(221, 161, 94, 0.25);
-}
-
-.dc-mission-sector-card.is-dragging {
-  opacity: 0.55;
-  cursor: grabbing;
-  transform: scale(0.98);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-}
-
-.dc-mission-sector-card.is-drag-over {
-  border-color: rgba(221, 161, 94, 0.75);
-  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(221, 161, 94, 0.3);
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 13, 15, 0.8);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
 }
 
 .dc-mission-sector-card-top {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.dc-mission-sector-card-title {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.dc-mission-sector-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  border-radius: 10px;
-  border: 1px solid rgba(221, 161, 94, 0.4);
-  background: rgba(221, 161, 94, 0.14);
-  cursor: grab;
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease,
-    box-shadow 0.18s ease;
-  padding: 0;
-}
-
-.dc-mission-sector-drag-handle:hover {
-  background: rgba(221, 161, 94, 0.2);
-  border-color: rgba(221, 161, 94, 0.55);
-  box-shadow: 0 0 0 2px rgba(221, 161, 94, 0.18);
-}
-
-.dc-mission-sector-drag-handle:active,
-.dc-mission-sector-card.is-dragging .dc-mission-sector-drag-handle {
-  cursor: grabbing;
-  background: rgba(221, 161, 94, 0.24);
-}
-
-.dc-mission-sector-drag-icon {
-  width: 16px;
-  height: 18px;
-  position: relative;
-  display: block;
-}
-
-.dc-mission-sector-drag-icon::before,
-.dc-mission-sector-drag-icon::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at 50% 20%, rgba(0, 0, 0, 0) 18%, rgba(0, 0, 0, 0.65) 19%, rgba(0, 0, 0, 0.65) 40%, rgba(0, 0, 0, 0) 41%),
-    radial-gradient(circle at 50% 80%, rgba(0, 0, 0, 0) 18%, rgba(0, 0, 0, 0.65) 19%, rgba(0, 0, 0, 0.65) 40%, rgba(0, 0, 0, 0) 41%);
-  background-size: 100% 50%;
-  background-repeat: no-repeat;
-}
-
-.dc-mission-sector-name {
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(221, 161, 94, 0.5);
-  background: rgba(18, 19, 21, 0.92);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-
-.dc-mission-sector-name::placeholder {
-  color: rgba(221, 161, 94, 0.55);
-  font-weight: 500;
-}
-
-.dc-mission-sector-name:focus {
-  border-color: rgba(221, 161, 94, 0.85);
-  background: rgba(24, 21, 18, 0.95);
-  box-shadow: 0 0 0 3px rgba(221, 161, 94, 0.25);
+  gap: 12px;
 }
 
 .dc-mission-sector-name {
@@ -647,7 +522,7 @@ h1, h2, h3 {
 
 .dc-mission-sector-controls {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
@@ -692,84 +567,20 @@ h1, h2, h3 {
 }
 
 :root.theme-terminal .dc-mission-sectors {
-  border-color: rgba(0, 255, 0, 0.28);
-  background: linear-gradient(
-    180deg,
-    rgba(8, 28, 8, 0.95) 0%,
-    rgba(6, 22, 6, 0.92) 45%,
-    rgba(4, 16, 4, 0.85) 100%
-  );
-  box-shadow: 0 26px 48px rgba(0, 255, 0, 0.22);
-}
-
-:root.theme-terminal .dc-mission-sectors::before {
-  background: radial-gradient(120% 60% at 50% 0%, rgba(0, 255, 0, 0.2), transparent 75%),
-    linear-gradient(180deg, rgba(0, 255, 0, 0.06), transparent 32%);
+  border-color: rgba(0, 255, 0, 0.3);
+  background: linear-gradient(145deg, rgba(9, 26, 9, 0.92), rgba(9, 26, 9, 0.72));
+  box-shadow: 0 14px 36px rgba(0, 255, 0, 0.18);
 }
 
 :root.theme-terminal .dc-mission-sectors-empty {
-  border-color: rgba(0, 255, 0, 0.35);
-  background: rgba(0, 64, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.32);
+  background: rgba(0, 64, 0, 0.45);
 }
 
 :root.theme-terminal .dc-mission-sector-card {
-  border-color: rgba(0, 255, 0, 0.4);
-  background: linear-gradient(
-    180deg,
-    rgba(0, 48, 0, 0.85) 0%,
-    rgba(0, 40, 0, 0.8) 55%,
-    rgba(0, 32, 0, 0.76) 100%
-  );
-  box-shadow: 0 18px 38px rgba(0, 255, 0, 0.2);
-}
-
-:root.theme-terminal .dc-mission-sector-card:focus-within {
-  border-color: rgba(0, 255, 0, 0.65);
-  box-shadow: 0 20px 40px rgba(0, 255, 0, 0.25), 0 0 0 2px rgba(0, 255, 0, 0.25);
-}
-
-:root.theme-terminal .dc-mission-sector-card.is-drag-over {
-  border-color: rgba(0, 255, 0, 0.8);
-  box-shadow: 0 22px 46px rgba(0, 255, 0, 0.28), 0 0 0 2px rgba(0, 255, 0, 0.28);
-}
-
-:root.theme-terminal .dc-mission-sector-drag-handle {
-  border-color: rgba(0, 255, 0, 0.45);
-  background: rgba(0, 255, 0, 0.14);
-  box-shadow: none;
-}
-
-:root.theme-terminal .dc-mission-sector-drag-handle:hover {
-  background: rgba(0, 255, 0, 0.22);
-  border-color: rgba(0, 255, 0, 0.65);
-  box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.18);
-}
-
-:root.theme-terminal .dc-mission-sector-drag-handle:active,
-:root.theme-terminal .dc-mission-sector-card.is-dragging .dc-mission-sector-drag-handle {
-  background: rgba(0, 255, 0, 0.28);
-}
-
-:root.theme-terminal .dc-mission-sector-drag-icon::before,
-:root.theme-terminal .dc-mission-sector-drag-icon::after {
-  background-image: radial-gradient(circle at 50% 20%, rgba(0, 255, 0, 0) 18%, rgba(0, 255, 0, 0.8) 19%, rgba(0, 255, 0, 0.8) 40%, rgba(0, 255, 0, 0) 41%),
-    radial-gradient(circle at 50% 80%, rgba(0, 255, 0, 0) 18%, rgba(0, 255, 0, 0.8) 19%, rgba(0, 255, 0, 0.8) 40%, rgba(0, 255, 0, 0) 41%);
-}
-
-:root.theme-terminal .dc-mission-sector-name {
-  border-color: rgba(0, 255, 0, 0.5);
-  background: rgba(0, 64, 0, 0.72);
-  color: var(--text);
-}
-
-:root.theme-terminal .dc-mission-sector-name::placeholder {
-  color: rgba(0, 255, 0, 0.6);
-}
-
-:root.theme-terminal .dc-mission-sector-name:focus {
-  border-color: rgba(0, 255, 0, 0.85);
-  background: rgba(0, 80, 0, 0.85);
-  box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.25);
+  border-color: rgba(0, 255, 0, 0.25);
+  background: rgba(0, 40, 0, 0.6);
+  box-shadow: 0 12px 28px rgba(0, 255, 0, 0.15);
 }
 
 :root.theme-terminal .dc-mission-sector-randomize {
