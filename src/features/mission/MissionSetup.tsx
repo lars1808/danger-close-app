@@ -102,6 +102,16 @@ export default function MissionSetup(props: MissionSetupProps) {
     }));
   }
 
+  function handleClearMission() {
+    setMission((prev) => ({
+      ...prev,
+      name: "",
+      objective: "",
+      status: "planning",
+      startTime: undefined,
+    }));
+  }
+
   function handleRandomize() {
     setMission((prev) => ({
       ...prev,
@@ -187,12 +197,21 @@ export default function MissionSetup(props: MissionSetupProps) {
       {/* Buttons Row */}
       <div className="dc-mission-buttons">
         <button
+          type="button"
+          className="dc-btn dc-mission-btn dc-mission-btn--clear"
+          onClick={handleClearMission}
+        >
+          CLEAR
+        </button>
+        <button
+          type="button"
           className="dc-btn dc-mission-btn dc-mission-btn--randomize"
           onClick={handleRandomize}
         >
           RANDOMIZE
         </button>
         <button
+          type="button"
           className="dc-btn dc-mission-btn dc-mission-btn--deploy"
           onClick={handleDeploySquad}
         >

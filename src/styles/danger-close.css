@@ -233,6 +233,57 @@ h1, h2, h3 {
   box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
 }
 
+/* ==================== MISSION SETUP ==================== */
+.dc-mission-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dc-mission-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dc-mission-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.dc-mission-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.dc-mission-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.dc-mission-btn {
+  width: 100%;
+  padding: 10px 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.dc-mission-btn--clear {
+  background: #161719;
+  border-color: #272a2d;
+  color: var(--text-dim);
+}
+
+.dc-mission-btn--clear:hover {
+  background: #1d1f21;
+  color: var(--text);
+}
+
 /* ==================== TABLE WRAPPER ==================== */
 .dc-table-wrap {
   background: var(--panel);
