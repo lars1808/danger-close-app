@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import SquadTable from "./features/squad/SquadTable";
 import LogTab from "./features/log/LogTab";
 import MissionSetup from "./features/mission/MissionSetup";
@@ -12,6 +12,10 @@ type Theme = "default" | "terminal";
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabName>("squad");
   const [logEntries, setLogEntries] = useState<T.LogEntry[]>([]);
+  const [logAttention, setLogAttention] = useState(false);
+  const logAttentionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("dc-theme");
     return (saved as Theme) || "default";
@@ -28,25 +32,58 @@ export default function App() {
     localStorage.setItem("dc-theme", theme);
   }, [theme]);
 
+  const triggerLogAttention = useCallback(() => {
+    setLogAttention(true);
+    if (logAttentionTimeoutRef.current) {
+      clearTimeout(logAttentionTimeoutRef.current);
+    }
+    logAttentionTimeoutRef.current = setTimeout(() => {
+      setLogAttention(false);
+      logAttentionTimeoutRef.current = null;
+    }, 1400);
+  }, []);
+
   // Function to add a log entry (can be called from any tab)
   function addLogEntry(text: string, source: T.LogSource = "USER") {
     if (!text.trim()) return;
-    
+
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
     const timestamp = `${hours}:${minutes}:${seconds}`;
 
-    const newEntry: T.LogEntry = {
-      id: Date.now().toString(),
-      timestamp,
-      source,
-      text,
-      order: logEntries.length,
-    };
-    setLogEntries([...logEntries, newEntry]);
+    setLogEntries((prevEntries) => {
+      const newEntry: T.LogEntry = {
+        id: Date.now().toString(),
+        timestamp,
+        source,
+        text,
+        order: prevEntries.length,
+      };
+      return [...prevEntries, newEntry];
+    });
+
+    if (activeTab !== "log") {
+      triggerLogAttention();
+    }
   }
+
+  useEffect(() => {
+    if (activeTab === "log") {
+      setLogAttention(false);
+      if (logAttentionTimeoutRef.current) {
+        clearTimeout(logAttentionTimeoutRef.current);
+        logAttentionTimeoutRef.current = null;
+      }
+    }
+    return () => {
+      if (logAttentionTimeoutRef.current) {
+        clearTimeout(logAttentionTimeoutRef.current);
+        logAttentionTimeoutRef.current = null;
+      }
+    };
+  }, [activeTab]);
 
   return (
     <main>
@@ -93,7 +130,9 @@ export default function App() {
             ENGAGEMENT
           </button>
           <button
-            className={`dc-tab-btn ${activeTab === "log" ? "active" : ""}`}
+            className={`dc-tab-btn ${
+              activeTab === "log" ? "active" : ""
+            } ${logAttention ? "dc-tab-btn--notify" : ""}`}
             onClick={() => setActiveTab("log")}
           >
             LOG
