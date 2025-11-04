@@ -749,53 +749,6 @@ h1, h2, h3 {
   color: var(--text-dim);
 }
 
-.dc-mission-sector-weather-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.dc-mission-sector-weather-option {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(96, 108, 56, 0.12);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-
-.dc-mission-sector-weather-option input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.dc-mission-sector-weather-option span {
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.dc-mission-sector-weather-option.is-active {
-  border-color: rgba(221, 161, 94, 0.6);
-  background: rgba(221, 161, 94, 0.24);
-}
-
-.dc-mission-sector-weather-option.is-active span {
-  color: var(--text);
-}
-
-.dc-mission-sector-weather-option:hover {
-  border-color: rgba(221, 161, 94, 0.45);
-}
-
 .dc-mission-sector-advance {
   grid-column: 1 / -1;
   justify-self: flex-start;
@@ -896,6 +849,54 @@ h1, h2, h3 {
   font-size: 0.9rem;
   line-height: 1.4;
   color: var(--text-dim);
+}
+
+.dc-engagement-weather {
+  gap: 14px;
+}
+
+.dc-engagement-weather-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dc-engagement-weather-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(96, 108, 56, 0.18);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.dc-engagement-weather-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dc-engagement-weather-option span {
+  pointer-events: none;
+}
+
+.dc-engagement-weather-option.is-active {
+  border-color: rgba(221, 161, 94, 0.6);
+  background: rgba(221, 161, 94, 0.3);
+  color: var(--text);
+}
+
+.dc-engagement-weather-option:hover {
+  border-color: rgba(221, 161, 94, 0.45);
 }
 
 .dc-engagement-effect-label {
@@ -1139,6 +1140,22 @@ h1, h2, h3 {
 :root.theme-terminal .dc-engagement-empty {
   border-color: rgba(0, 255, 0, 0.32);
   color: rgba(0, 255, 0, 0.75);
+}
+
+:root.theme-terminal .dc-engagement-weather-option {
+  border-color: rgba(0, 255, 0, 0.35);
+  background: rgba(0, 64, 0, 0.5);
+  color: rgba(0, 255, 0, 0.7);
+}
+
+:root.theme-terminal .dc-engagement-weather-option.is-active {
+  border-color: rgba(0, 255, 0, 0.82);
+  background: rgba(0, 128, 0, 0.58);
+  color: rgba(0, 255, 0, 1);
+}
+
+:root.theme-terminal .dc-engagement-weather-option:hover {
+  border-color: rgba(0, 255, 0, 0.55);
 }
 
 /* ==================== TABLE WRAPPER ==================== */

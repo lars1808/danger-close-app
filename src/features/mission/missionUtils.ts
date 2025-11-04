@@ -1,6 +1,7 @@
 import * as T from "../squad/types";
 
 export const THREAT_CONTENT_VALUES = ["TL 1", "TL 2", "TL 3", "TL 4"] as const;
+export const MISSION_WEATHER_OPTIONS = ["Normal", "Bad", "Terrible"] as const satisfies ReadonlyArray<T.MissionWeather>;
 
 export type ThreatContent = (typeof THREAT_CONTENT_VALUES)[number];
 

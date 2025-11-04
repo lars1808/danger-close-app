@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as T from "../squad/types";
 import { getStoredSquadName } from "../squad/storageKeys";
-import { getSectorDisplayName, isThreatContent } from "./missionUtils";
+import { getSectorDisplayName, isThreatContent, MISSION_WEATHER_OPTIONS } from "./missionUtils";
 
 export const MISSION_STORAGE_KEY = "danger-close-mission";
 
@@ -764,34 +764,6 @@ export default function MissionSetup(props: MissionSetupProps) {
                             ))}
                         </select>
                       </label>
-                      <div className="dc-mission-sector-field dc-mission-sector-weather">
-                        <span>Weather</span>
-                        <div className="dc-mission-sector-weather-options">
-                          {MISSION_WEATHER_OPTIONS.map((option) => (
-                            <label
-                              key={option}
-                              className={`dc-mission-sector-weather-option ${
-                                sector.weather === option ? "is-active" : ""
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name={`mission-sector-weather-${sector.id}`}
-                                value={option}
-                                checked={sector.weather === option}
-                                onChange={() =>
-                                  handleSectorFieldChange(
-                                    sector.id,
-                                    "weather",
-                                    option,
-                                  )
-                                }
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
                       {isThreatContent(sector.content) && (
                         <button
                           type="button"

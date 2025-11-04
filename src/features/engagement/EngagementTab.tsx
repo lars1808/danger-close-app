@@ -4,6 +4,7 @@ import { getStoredSquadName } from "../squad/storageKeys";
 import {
   getSectorDisplayName,
   isThreatContent,
+  MISSION_WEATHER_OPTIONS,
 } from "../mission/missionUtils";
 import type { ThreatContent } from "../mission/missionUtils";
 
@@ -113,6 +114,24 @@ export default function EngagementTab(props: EngagementTabProps) {
     }));
   }
 
+  function handleWeatherChange(nextWeather: T.MissionWeather) {
+    if (!selectedSector || selectedSector.weather === nextWeather) {
+      return;
+    }
+
+    onMissionChange((prev) => ({
+      ...prev,
+      sectors: prev.sectors.map((sector) =>
+        sector.id === selectedSector.id
+          ? {
+              ...sector,
+              weather: nextWeather,
+            }
+          : sector,
+      ),
+    }));
+  }
+
   return (
     <section className="dc-engagement" aria-label="Engagement Overview">
       <div className="dc-engagement-field">
@@ -210,6 +229,31 @@ export default function EngagementTab(props: EngagementTabProps) {
                   {THREAT_LEVEL_DETAILS[selectedSector.content].label}
                 </span>
               </p>
+            </article>
+            <article className="dc-engagement-card dc-engagement-weather">
+              <header>
+                <h4>Weather</h4>
+                <span className="dc-engagement-value">{selectedSector.weather}</span>
+              </header>
+              <div className="dc-engagement-weather-options" role="radiogroup" aria-label="Sector weather">
+                {MISSION_WEATHER_OPTIONS.map((option) => (
+                  <label
+                    key={option}
+                    className={`dc-engagement-weather-option ${
+                      selectedSector.weather === option ? "is-active" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="dc-engagement-weather"
+                      value={option}
+                      checked={selectedSector.weather === option}
+                      onChange={() => handleWeatherChange(option)}
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
+              </div>
             </article>
           </div>
         </div>
