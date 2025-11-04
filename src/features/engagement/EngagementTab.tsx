@@ -7,23 +7,41 @@ import {
 } from "../mission/missionUtils";
 import type { ThreatContent } from "../mission/missionUtils";
 
-const COVER_EFFECTS: Record<T.MissionCover, string> = {
-  Exposed: "Defensive Position Effect: Never Fortified.",
-  Normal: "Defensive Position Effect: No more than 2 Troopers Fortified.",
-  Dense: "Defensive Position Effect: No limit on Fortified.",
+const COVER_EFFECTS: Record<T.MissionCover, { label: string; detail: string }> = {
+  Exposed: {
+    label: "Defensive Position Effect",
+    detail: "Never Fortified.",
+  },
+  Normal: {
+    label: "Defensive Position Effect",
+    detail: "No more than 2 Troopers Fortified.",
+  },
+  Dense: {
+    label: "Defensive Position Effect",
+    detail: "No limit on Fortified.",
+  },
 };
 
-const SPACE_EFFECTS: Record<T.MissionSpace, string> = {
-  Tight: "Offensive Position Effect: Never Flanking.",
-  Transitional: "Offensive Position Effect: No more than 2 Troopers Flanking.",
-  Open: "Offensive Position Effect: No limit on Flanking.",
+const SPACE_EFFECTS: Record<T.MissionSpace, { label: string; detail: string }> = {
+  Tight: {
+    label: "Offensive Position Effect",
+    detail: "Never Flanking.",
+  },
+  Transitional: {
+    label: "Offensive Position Effect",
+    detail: "No more than 2 Troopers Flanking.",
+  },
+  Open: {
+    label: "Offensive Position Effect",
+    detail: "No limit on Flanking.",
+  },
 };
 
-const THREAT_LEVEL_LABELS: Record<ThreatContent, string> = {
-  "TL 1": "Light",
-  "TL 2": "Standard",
-  "TL 3": "Heavy",
-  "TL 4": "Overwhelming",
+const THREAT_LEVEL_DETAILS: Record<ThreatContent, { label: string; tone: string }> = {
+  "TL 1": { label: "Light", tone: "tl1" },
+  "TL 2": { label: "Standard", tone: "tl2" },
+  "TL 3": { label: "Heavy", tone: "tl3" },
+  "TL 4": { label: "Overwhelming", tone: "tl4" },
 };
 
 interface EngagementTabProps {
@@ -112,11 +130,16 @@ export default function EngagementTab(props: EngagementTabProps) {
               No Threat Level sectors available
             </option>
           ) : (
-            threatSectors.map((sector) => (
-              <option key={sector.id} value={sector.id}>
-                {getSectorDisplayName(sector)}
+            <>
+              <option value="" disabled>
+                Select a Threat Sector
               </option>
-            ))
+              {threatSectors.map((sector) => (
+                <option key={sector.id} value={sector.id}>
+                  {getSectorDisplayName(sector)}
+                </option>
+              ))}
+            </>
           )}
         </select>
       </div>
@@ -143,21 +166,50 @@ export default function EngagementTab(props: EngagementTabProps) {
                 <h4>Cover</h4>
                 <span className="dc-engagement-value">{selectedSector.cover}</span>
               </header>
-              <p>{COVER_EFFECTS[selectedSector.cover]}</p>
+              <p>
+                <span className="dc-engagement-effect-label">
+                  {COVER_EFFECTS[selectedSector.cover].label}
+                </span>
+                <span className="dc-engagement-effect-detail">
+                  {COVER_EFFECTS[selectedSector.cover].detail}
+                </span>
+              </p>
             </article>
             <article className="dc-engagement-card">
               <header>
                 <h4>Space</h4>
                 <span className="dc-engagement-value">{selectedSector.space}</span>
               </header>
-              <p>{SPACE_EFFECTS[selectedSector.space]}</p>
+              <p>
+                <span className="dc-engagement-effect-label">
+                  {SPACE_EFFECTS[selectedSector.space].label}
+                </span>
+                <span className="dc-engagement-effect-detail">
+                  {SPACE_EFFECTS[selectedSector.space].detail}
+                </span>
+              </p>
             </article>
             <article className="dc-engagement-card">
               <header>
                 <h4>Threat Level</h4>
-                <span className="dc-engagement-value">{selectedSector.content}</span>
+                <span
+                  className={`dc-engagement-value dc-engagement-value--${
+                    THREAT_LEVEL_DETAILS[selectedSector.content].tone
+                  }`}
+                >
+                  {selectedSector.content}
+                </span>
               </header>
-              <p>{THREAT_LEVEL_LABELS[selectedSector.content]}</p>
+              <p>
+                <span className="dc-engagement-effect-label">Threat Assessment</span>
+                <span
+                  className={`dc-engagement-effect-detail dc-engagement-threat-detail dc-engagement-threat-detail--${
+                    THREAT_LEVEL_DETAILS[selectedSector.content].tone
+                  }`}
+                >
+                  {THREAT_LEVEL_DETAILS[selectedSector.content].label}
+                </span>
+              </p>
             </article>
           </div>
         </div>

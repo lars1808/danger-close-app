@@ -47,22 +47,15 @@ export default function App() {
   }, [mission]);
 
   useEffect(() => {
-    const threatSectors = mission.sectors.filter((sector) =>
-      isThreatContent(sector.content)
-    );
-
-    if (threatSectors.length === 0) {
-      if (currentSectorId !== null) {
-        setCurrentSectorId(null);
-      }
+    if (currentSectorId === null) {
       return;
     }
 
-    if (currentSectorId && threatSectors.some((sector) => sector.id === currentSectorId)) {
+    if (mission.sectors.some((sector) => sector.id === currentSectorId)) {
       return;
     }
 
-    setCurrentSectorId(threatSectors[0].id);
+    setCurrentSectorId(null);
   }, [mission.sectors, currentSectorId]);
 
   const triggerLogAttention = useCallback(() => {

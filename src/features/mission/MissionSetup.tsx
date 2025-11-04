@@ -23,6 +23,11 @@ export const MISSION_CONTENT_OPTIONS: T.MissionContent[] = [
   "TL 3",
   "TL 4",
 ];
+export const MISSION_WEATHER_OPTIONS: T.MissionWeather[] = [
+  "Normal",
+  "Bad",
+  "Terrible",
+];
 const MISSION_DIFFICULTY_OPTIONS: T.Difficulty[] = ["Routine", "Hazardous", "Desperate"];
 const MISSION_AIRSPACE_OPTIONS: T.Airspace[] = ["Clear", "Contested", "Hostile"];
 const MISSION_STATUS_OPTIONS: Array<T.Mission["status"]> = ["planning", "active", "complete"];
@@ -129,6 +134,7 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       cover: "Normal",
       space: "Transitional",
       content: "Nothing",
+      weather: "Normal",
     };
   }
 
@@ -143,6 +149,9 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
     cover: isMissionCover(rawSector.cover) ? rawSector.cover : "Normal",
     space: isMissionSpace(rawSector.space) ? rawSector.space : "Transitional",
     content: isMissionContent(rawSector.content) ? rawSector.content : "Nothing",
+    weather: MISSION_WEATHER_OPTIONS.includes(rawSector.weather as T.MissionWeather)
+      ? (rawSector.weather as T.MissionWeather)
+      : "Normal",
   };
 }
 
@@ -197,6 +206,13 @@ function getRandomSpace(): T.MissionSpace {
   if (roll === 1) return "Tight";
   if (roll <= 4) return "Transitional";
   return "Open";
+}
+
+function getRandomWeather(): T.MissionWeather {
+  const roll = rollD6();
+  if (roll <= 3) return "Normal";
+  if (roll <= 5) return "Bad";
+  return "Terrible";
 }
 
 function getRandomContent(difficulty: T.Difficulty): T.MissionContent {
@@ -336,6 +352,7 @@ export default function MissionSetup(props: MissionSetupProps) {
           cover: "Normal",
           space: "Transitional",
           content: "Nothing",
+          weather: "Normal",
         },
       ],
     }));
@@ -355,6 +372,7 @@ export default function MissionSetup(props: MissionSetupProps) {
       const nextCover = getRandomCover();
       const nextSpace = getRandomSpace();
       const nextContent = getRandomContent(prev.difficulty);
+      const nextWeather = getRandomWeather();
 
       return {
         ...prev,
@@ -365,6 +383,7 @@ export default function MissionSetup(props: MissionSetupProps) {
                 cover: nextCover,
                 space: nextSpace,
                 content: nextContent,
+                weather: nextWeather,
               }
             : sector,
         ),
@@ -745,9 +764,37 @@ export default function MissionSetup(props: MissionSetupProps) {
                             ))}
                         </select>
                       </label>
-                        {isThreatContent(sector.content) && (
-                          <button
-                            type="button"
+                      <div className="dc-mission-sector-field dc-mission-sector-weather">
+                        <span>Weather</span>
+                        <div className="dc-mission-sector-weather-options">
+                          {MISSION_WEATHER_OPTIONS.map((option) => (
+                            <label
+                              key={option}
+                              className={`dc-mission-sector-weather-option ${
+                                sector.weather === option ? "is-active" : ""
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`mission-sector-weather-${sector.id}`}
+                                value={option}
+                                checked={sector.weather === option}
+                                onChange={() =>
+                                  handleSectorFieldChange(
+                                    sector.id,
+                                    "weather",
+                                    option,
+                                  )
+                                }
+                              />
+                              <span>{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      {isThreatContent(sector.content) && (
+                        <button
+                          type="button"
                             className="dc-btn dc-btn--sm dc-mission-sector-advance"
                             onClick={() => handleAdvanceIntoEngagement(sector)}
                           >
