@@ -1,18 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as T from "../squad/types";
 import { getStoredSquadName } from "../squad/storageKeys";
+import { getSectorDisplayName, isThreatContent } from "./missionUtils";
 
-const MISSION_STORAGE_KEY = "danger-close-mission";
+export const MISSION_STORAGE_KEY = "danger-close-mission";
 
-const MISSION_COVER_OPTIONS: T.MissionCover[] = ["Exposed", "Normal", "Dense"];
-const MISSION_SPACE_OPTIONS: T.MissionSpace[] = ["Tight", "Transitional", "Open"];
-const MISSION_CONTENT_OPTIONS: T.MissionContent[] = [
+export const MISSION_COVER_OPTIONS: T.MissionCover[] = [
+  "Exposed",
+  "Normal",
+  "Dense",
+];
+export const MISSION_SPACE_OPTIONS: T.MissionSpace[] = [
+  "Tight",
+  "Transitional",
+  "Open",
+];
+export const MISSION_CONTENT_OPTIONS: T.MissionContent[] = [
   "Boon",
   "Nothing",
   "TL 1",
   "TL 2",
   "TL 3",
   "TL 4",
+];
+export const MISSION_WEATHER_OPTIONS: T.MissionWeather[] = [
+  "Normal",
+  "Bad",
+  "Terrible",
 ];
 const MISSION_DIFFICULTY_OPTIONS: T.Difficulty[] = ["Routine", "Hazardous", "Desperate"];
 const MISSION_AIRSPACE_OPTIONS: T.Airspace[] = ["Clear", "Contested", "Hostile"];
@@ -72,6 +86,11 @@ const MISSION_OBJECTIVES = [
 ];
 
 interface MissionSetupProps {
+  mission: T.Mission;
+  onMissionChange: React.Dispatch<React.SetStateAction<T.Mission>>;
+  currentSectorId: string | null;
+  onCurrentSectorChange: (sectorId: string | null) => void;
+  onAdvanceToEngagement: (sectorId: string) => void;
   onAddLog: (text: string, source: T.LogSource) => void;
 }
 
@@ -115,6 +134,7 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       cover: "Normal",
       space: "Transitional",
       content: "Nothing",
+      weather: "Normal",
     };
   }
 
@@ -129,10 +149,13 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
     cover: isMissionCover(rawSector.cover) ? rawSector.cover : "Normal",
     space: isMissionSpace(rawSector.space) ? rawSector.space : "Transitional",
     content: isMissionContent(rawSector.content) ? rawSector.content : "Nothing",
+    weather: MISSION_WEATHER_OPTIONS.includes(rawSector.weather as T.MissionWeather)
+      ? (rawSector.weather as T.MissionWeather)
+      : "Normal",
   };
 }
 
-function normalizeMission(raw: unknown): T.Mission {
+export function normalizeMission(raw: unknown): T.Mission {
   const fallback: T.Mission = {
     id: Date.now().toString(),
     name: "",
@@ -185,6 +208,13 @@ function getRandomSpace(): T.MissionSpace {
   return "Open";
 }
 
+function getRandomWeather(): T.MissionWeather {
+  const roll = rollD6();
+  if (roll <= 3) return "Normal";
+  if (roll <= 5) return "Bad";
+  return "Terrible";
+}
+
 function getRandomContent(difficulty: T.Difficulty): T.MissionContent {
   const roll = rollD6() as 1 | 2 | 3 | 4 | 5 | 6;
   return MISSION_CONTENT_ROLL_TABLE[difficulty][roll];
@@ -213,39 +243,21 @@ function getRandomAirspace(): T.Airspace {
 }
 
 export default function MissionSetup(props: MissionSetupProps) {
-  const { onAddLog } = props;
+  const {
+    mission,
+    onMissionChange,
+    currentSectorId,
+    onCurrentSectorChange,
+    onAdvanceToEngagement,
+    onAddLog,
+  } = props;
 
-  const [mission, setMission] = useState<T.Mission>(() => {
-    const saved = localStorage.getItem(MISSION_STORAGE_KEY);
-    return saved ? normalizeMission(JSON.parse(saved)) : normalizeMission(undefined);
-  });
   const [draggedSectorId, setDraggedSectorId] = useState<string | null>(null);
   const [dragOverSectorId, setDragOverSectorId] = useState<string | null>(null);
-  const [currentSectorId, setCurrentSectorId] = useState<string | null>(null);
   const [randomizingSectorId, setRandomizingSectorId] = useState<string | null>(null);
   const randomizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isMissionLocked = mission.status === "active";
-
-  // Auto-save to localStorage
-  useEffect(() => {
-    localStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(mission));
-  }, [mission]);
-
-  useEffect(() => {
-    if (!isMissionLocked) {
-      setCurrentSectorId(null);
-      return;
-    }
-
-    setCurrentSectorId((previous) => {
-      if (previous && mission.sectors.some((sector) => sector.id === previous)) {
-        return previous;
-      }
-
-      return mission.sectors[0]?.id ?? null;
-    });
-  }, [isMissionLocked, mission.sectors]);
 
   useEffect(() => {
     return () => {
@@ -256,29 +268,29 @@ export default function MissionSetup(props: MissionSetupProps) {
   }, []);
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setMission((prev) => ({ ...prev, name: e.target.value }));
+    onMissionChange((prev) => ({ ...prev, name: e.target.value }));
   }
 
   function handleObjectiveChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setMission((prev) => ({ ...prev, objective: e.target.value }));
+    onMissionChange((prev) => ({ ...prev, objective: e.target.value }));
   }
 
   function handleDifficultyChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       difficulty: e.target.value as T.Difficulty,
     }));
   }
 
   function handleAirspaceChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       airspace: e.target.value as T.Airspace,
     }));
   }
 
   function handleClearMission() {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       name: "",
       objective: "",
@@ -289,7 +301,7 @@ export default function MissionSetup(props: MissionSetupProps) {
   }
 
   function handleEditMission() {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       status: "planning",
       startTime: undefined,
@@ -297,7 +309,7 @@ export default function MissionSetup(props: MissionSetupProps) {
   }
 
   function handleRandomize() {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       objective: getRandomObjective(),
       difficulty: getRandomDifficulty(),
@@ -317,7 +329,7 @@ export default function MissionSetup(props: MissionSetupProps) {
     const missionObjective = mission.objective.trim() || "Objective Pending";
     const { difficulty, airspace } = mission;
 
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       name: prev.name.trim(),
       objective: prev.objective.trim(),
@@ -330,7 +342,7 @@ export default function MissionSetup(props: MissionSetupProps) {
   }
 
   function handleAddSector() {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       sectors: [
         ...prev.sectors,
@@ -340,6 +352,7 @@ export default function MissionSetup(props: MissionSetupProps) {
           cover: "Normal",
           space: "Transitional",
           content: "Nothing",
+          weather: "Normal",
         },
       ],
     }));
@@ -355,10 +368,11 @@ export default function MissionSetup(props: MissionSetupProps) {
       setRandomizingSectorId((current) => (current === id ? null : current));
     }, 500);
 
-    setMission((prev) => {
+    onMissionChange((prev) => {
       const nextCover = getRandomCover();
       const nextSpace = getRandomSpace();
       const nextContent = getRandomContent(prev.difficulty);
+      const nextWeather = getRandomWeather();
 
       return {
         ...prev,
@@ -369,6 +383,7 @@ export default function MissionSetup(props: MissionSetupProps) {
                 cover: nextCover,
                 space: nextSpace,
                 content: nextContent,
+                weather: nextWeather,
               }
             : sector,
         ),
@@ -390,11 +405,25 @@ export default function MissionSetup(props: MissionSetupProps) {
 
     const storedSquadName = getStoredSquadName().trim();
     const squadName = storedSquadName || "Unnamed Squad";
-    const previousName = previousSector?.name.trim() || "Staging Area";
-    const nextName = nextSector.name.trim() || "Unnamed Sector";
+    const previousName = previousSector
+      ? getSectorDisplayName(previousSector)
+      : "Staging Area";
+    const nextName = getSectorDisplayName(nextSector);
 
     onAddLog(`${squadName} MOVEMENT: ${previousName} >> ${nextName}`, "SYSTEM");
-    setCurrentSectorId(sectorId);
+    onCurrentSectorChange(sectorId);
+  }
+
+  function handleAdvanceIntoEngagement(sector: T.MissionSector) {
+    if (isMissionLocked) {
+      if (currentSectorId !== sector.id) {
+        handleCurrentSectorChange(sector.id);
+      }
+    } else {
+      onCurrentSectorChange(sector.id);
+    }
+
+    onAdvanceToEngagement(sector.id);
   }
 
   function handleSectorFieldChange<TKey extends keyof T.MissionSector>(
@@ -402,7 +431,7 @@ export default function MissionSetup(props: MissionSetupProps) {
     key: TKey,
     value: T.MissionSector[TKey],
   ) {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       sectors: prev.sectors.map((sector) =>
         sector.id === id
@@ -416,7 +445,7 @@ export default function MissionSetup(props: MissionSetupProps) {
   }
 
   function handleDeleteSector(id: string) {
-    setMission((prev) => ({
+    onMissionChange((prev) => ({
       ...prev,
       sectors: prev.sectors.filter((sector) => sector.id !== id),
     }));
@@ -479,7 +508,7 @@ export default function MissionSetup(props: MissionSetupProps) {
       return;
     }
 
-    setMission((prev) => {
+    onMissionChange((prev) => {
       const fromIndex = prev.sectors.findIndex((sector) => sector.id === draggedSectorId);
       const toIndex = prev.sectors.findIndex((sector) => sector.id === targetId);
 
@@ -528,7 +557,7 @@ export default function MissionSetup(props: MissionSetupProps) {
     event.preventDefault();
     event.stopPropagation();
 
-    setMission((prev) => {
+    onMissionChange((prev) => {
       const fromIndex = prev.sectors.findIndex((sector) => sector.id === draggedSectorId);
 
       if (fromIndex === -1 || fromIndex === prev.sectors.length - 1) {
@@ -630,9 +659,8 @@ export default function MissionSetup(props: MissionSetupProps) {
                       onDrop={(event) => handleSectorDrop(event, sector.id)}
                       onDragEnd={handleSectorDragEnd}
                     >
-                    <div className="dc-mission-sector-card-top">
+                      <div className="dc-mission-sector-card-top">
                         <div className="dc-mission-sector-card-title">
-                          {/* Button removed */}
                           <input
                             type="text"
                             className="dc-input dc-mission-sector-name"
@@ -643,100 +671,137 @@ export default function MissionSetup(props: MissionSetupProps) {
                             placeholder="Sector name"
                           />
                         </div>
-                      <div className="dc-mission-sector-card-actions">
-                        {isMissionLocked && (
-                          <label className="dc-mission-sector-current" htmlFor={currentInputId}>
-                            <input
-                              id={currentInputId}
-                              type="radio"
-                              name="mission-current-sector"
-                              checked={currentSectorId === sector.id}
-                              onChange={() => handleCurrentSectorChange(sector.id)}
-                            />
-                            <span>Current Position</span>
-                          </label>
-                        )}
-                        <button
-                          type="button"
-                          className="dc-btn dc-btn--sm dc-mission-sector-randomize"
-                          onClick={() => handleSectorRandomize(sector.id)}
-                        >
-                          Randomize
-                        </button>
-                        <button
-                          type="button"
-                          className="dc-mission-sector-delete"
-                          onClick={() => handleDeleteSector(sector.id)}
-                        >
-                          Delete
-                        </button>
+                        <div className="dc-mission-sector-card-actions">
+                          {isMissionLocked && (
+                            <label className="dc-mission-sector-current" htmlFor={currentInputId}>
+                              <input
+                                id={currentInputId}
+                                type="radio"
+                                name="mission-current-sector"
+                                checked={currentSectorId === sector.id}
+                                onChange={() => handleCurrentSectorChange(sector.id)}
+                              />
+                              <span>Current Position</span>
+                            </label>
+                          )}
+                          <button
+                            type="button"
+                            className="dc-btn dc-btn--sm dc-mission-sector-randomize"
+                            onClick={() => handleSectorRandomize(sector.id)}
+                          >
+                            Randomize
+                          </button>
+                          <button
+                            type="button"
+                            className="dc-mission-sector-delete"
+                            onClick={() => handleDeleteSector(sector.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="dc-mission-sector-controls">
-                      <label className="dc-mission-sector-field">
-                        <span>Cover</span>
-                        <select
-                          className="dc-select"
-                          value={sector.cover}
-                          onChange={(event) =>
-                            handleSectorFieldChange(
-                              sector.id,
-                              "cover",
-                              event.target.value as T.MissionCover,
-                            )
-                          }
-                        >
-                          {MISSION_COVER_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
+                      <div className="dc-mission-sector-controls">
+                        <label className="dc-mission-sector-field">
+                          <span>Cover</span>
+                          <select
+                            className="dc-select"
+                            value={sector.cover}
+                            onChange={(event) =>
+                              handleSectorFieldChange(
+                                sector.id,
+                                "cover",
+                                event.target.value as T.MissionCover,
+                              )
+                            }
+                          >
+                            {MISSION_COVER_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
                         </select>
                       </label>
 
-                      <label className="dc-mission-sector-field">
-                        <span>Space</span>
-                        <select
-                          className="dc-select"
-                          value={sector.space}
-                          onChange={(event) =>
-                            handleSectorFieldChange(
-                              sector.id,
-                              "space",
-                              event.target.value as T.MissionSpace,
-                            )
-                          }
-                        >
-                          {MISSION_SPACE_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
+                        <label className="dc-mission-sector-field">
+                          <span>Space</span>
+                          <select
+                            className="dc-select"
+                            value={sector.space}
+                            onChange={(event) =>
+                              handleSectorFieldChange(
+                                sector.id,
+                                "space",
+                                event.target.value as T.MissionSpace,
+                              )
+                            }
+                          >
+                            {MISSION_SPACE_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
                         </select>
                       </label>
 
-                      <label className="dc-mission-sector-field">
-                        <span>Content</span>
-                        <select
-                          className="dc-select"
-                          value={sector.content}
-                          onChange={(event) =>
-                            handleSectorFieldChange(
-                              sector.id,
-                              "content",
-                              event.target.value as T.MissionContent,
-                            )
-                          }
-                        >
-                          {MISSION_CONTENT_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
+                        <label className="dc-mission-sector-field">
+                          <span>Content</span>
+                          <select
+                            className="dc-select"
+                            value={sector.content}
+                            onChange={(event) =>
+                              handleSectorFieldChange(
+                                sector.id,
+                                "content",
+                                event.target.value as T.MissionContent,
+                              )
+                            }
+                          >
+                            {MISSION_CONTENT_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
                         </select>
                       </label>
-                    </div>
+                      <div className="dc-mission-sector-field dc-mission-sector-weather">
+                        <span>Weather</span>
+                        <div className="dc-mission-sector-weather-options">
+                          {MISSION_WEATHER_OPTIONS.map((option) => (
+                            <label
+                              key={option}
+                              className={`dc-mission-sector-weather-option ${
+                                sector.weather === option ? "is-active" : ""
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`mission-sector-weather-${sector.id}`}
+                                value={option}
+                                checked={sector.weather === option}
+                                onChange={() =>
+                                  handleSectorFieldChange(
+                                    sector.id,
+                                    "weather",
+                                    option,
+                                  )
+                                }
+                              />
+                              <span>{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      {isThreatContent(sector.content) && (
+                        <button
+                          type="button"
+                            className="dc-btn dc-btn--sm dc-mission-sector-advance"
+                            onClick={() => handleAdvanceIntoEngagement(sector)}
+                          >
+                            Advance into Engagement
+                          </button>
+                        )}
+                      </div>
                     </article>
                   );
                 })
