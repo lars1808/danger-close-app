@@ -2,9 +2,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import SquadTable from "./features/squad/SquadTable";
 import LogTab from "./features/log/LogTab";
-import MissionSetup from "./features/mission/MissionSetup";
+import MissionSetup, {
+  MISSION_STORAGE_KEY,
+  normalizeMission,
+} from "./features/mission/MissionSetup";
+import EngagementTab from "./features/engagement/EngagementTab";
 import "./styles/danger-close.css";
 import * as T from "./features/squad/types";
+import { isThreatContent } from "./features/mission/missionUtils";
 
 type TabName = "squad" | "mission" | "engagement" | "log";
 type Theme = "default" | "terminal";
@@ -16,6 +21,11 @@ export default function App() {
   const logAttentionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const [mission, setMission] = useState<T.Mission>(() => {
+    const saved = localStorage.getItem(MISSION_STORAGE_KEY);
+    return saved ? normalizeMission(JSON.parse(saved)) : normalizeMission(undefined);
+  });
+  const [currentSectorId, setCurrentSectorId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("dc-theme");
     return (saved as Theme) || "default";
@@ -31,6 +41,29 @@ export default function App() {
     }
     localStorage.setItem("dc-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(mission));
+  }, [mission]);
+
+  useEffect(() => {
+    const threatSectors = mission.sectors.filter((sector) =>
+      isThreatContent(sector.content)
+    );
+
+    if (threatSectors.length === 0) {
+      if (currentSectorId !== null) {
+        setCurrentSectorId(null);
+      }
+      return;
+    }
+
+    if (currentSectorId && threatSectors.some((sector) => sector.id === currentSectorId)) {
+      return;
+    }
+
+    setCurrentSectorId(threatSectors[0].id);
+  }, [mission.sectors, currentSectorId]);
 
   const triggerLogAttention = useCallback(() => {
     setLogAttention(true);
@@ -84,6 +117,11 @@ export default function App() {
       }
     };
   }, [activeTab]);
+
+  const handleAdvanceToEngagement = useCallback((sectorId: string) => {
+    setCurrentSectorId(sectorId);
+    setActiveTab("engagement");
+  }, []);
 
   return (
     <main>
@@ -141,8 +179,25 @@ export default function App() {
 
         {/* TAB CONTENT */}
         {activeTab === "squad" && <SquadTable onAddLog={addLogEntry} />}
-        {activeTab === "mission" && <MissionSetup onAddLog={addLogEntry} />}
-        {activeTab === "engagement" && <div>Engagement Tab (coming soon)</div>}
+        {activeTab === "mission" && (
+          <MissionSetup
+            mission={mission}
+            onMissionChange={setMission}
+            currentSectorId={currentSectorId}
+            onCurrentSectorChange={setCurrentSectorId}
+            onAdvanceToEngagement={handleAdvanceToEngagement}
+            onAddLog={addLogEntry}
+          />
+        )}
+        {activeTab === "engagement" && (
+          <EngagementTab
+            mission={mission}
+            currentSectorId={currentSectorId}
+            onCurrentSectorChange={setCurrentSectorId}
+            onMissionChange={setMission}
+            onAddLog={addLogEntry}
+          />
+        )}
         {activeTab === "log" && <LogTab entries={logEntries} onUpdateEntries={setLogEntries} />}
       </div>
     </main>
