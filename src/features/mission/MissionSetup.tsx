@@ -501,15 +501,7 @@ export default function MissionSetup(props: MissionSetupProps) {
                     >
                     <div className="dc-mission-sector-card-top">
                         <div className="dc-mission-sector-card-title">
-                          <button
-                            type="button"
-                            className="dc-mission-sector-drag-handle"
-                            tabIndex={-1}
-                            aria-hidden="true"
-                            data-drag-handle="true"
-                          >
-                            <span className="dc-mission-sector-drag-icon" aria-hidden="true" />
-                          </button>
+                          {/* Button removed */}
                           <input
                             type="text"
                             className="dc-input dc-mission-sector-name"

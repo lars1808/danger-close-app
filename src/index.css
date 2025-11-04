@@ -31,6 +31,7 @@ body {
   padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--bg);  /* Make sure this is here */
 }
 
 h1 {
@@ -60,6 +61,7 @@ button:focus-visible {
 #root {
   width: 100%;
   min-height: 100vh;
+  background: var(--bg);  /* Add this */
 }
 
 main {
@@ -67,6 +69,7 @@ main {
   display: flex;
   justify-content: center;
   padding: clamp(16px, 5vw, 48px) 0 clamp(40px, 8vw, 72px);
+  background: var(--bg);  /* Add this line */
 }
 
 @media (prefers-color-scheme: light) {
