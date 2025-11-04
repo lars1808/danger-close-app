@@ -170,6 +170,8 @@ export default function MissionSetup(props: MissionSetupProps) {
     const saved = localStorage.getItem(MISSION_STORAGE_KEY);
     return saved ? normalizeMission(JSON.parse(saved)) : normalizeMission(undefined);
   });
+  const [draggedSectorId, setDraggedSectorId] = useState<string | null>(null);
+  const [dragOverSectorId, setDragOverSectorId] = useState<string | null>(null);
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -291,6 +293,137 @@ export default function MissionSetup(props: MissionSetupProps) {
     }));
   }
 
+  function handleSectorDragStart(event: React.DragEvent<HTMLElement>, id: string) {
+    const targetElement = event.target as HTMLElement | null;
+    const isDragHandle = targetElement?.closest("[data-drag-handle='true']") ?? null;
+    const isInteractiveTarget = targetElement?.closest("button, input, select, textarea, a");
+
+    if (!isDragHandle && isInteractiveTarget) {
+      event.preventDefault();
+      return;
+    }
+
+    const currentElement = event.currentTarget as HTMLElement | null;
+    const dragPreview = currentElement?.closest(".dc-mission-sector-card") ?? currentElement;
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+
+    if (dragPreview instanceof HTMLElement) {
+      const offsetX = dragPreview.offsetWidth / 2;
+      const offsetY = Math.min(32, dragPreview.offsetHeight / 2);
+      event.dataTransfer.setDragImage(dragPreview, offsetX, offsetY);
+    }
+
+    setDraggedSectorId(id);
+    setDragOverSectorId(null);
+  }
+
+  function handleSectorDragOver(event: React.DragEvent<HTMLElement>, id: string) {
+    if (!draggedSectorId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    if (draggedSectorId === id) {
+      if (dragOverSectorId !== null) {
+        setDragOverSectorId(null);
+      }
+      return;
+    }
+
+    setDragOverSectorId((prev) => (prev === id ? prev : id));
+  }
+
+  function handleSectorDrop(event: React.DragEvent<HTMLElement>, targetId: string) {
+    if (!draggedSectorId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (draggedSectorId === targetId) {
+      handleSectorDragEnd();
+      return;
+    }
+
+    setMission((prev) => {
+      const fromIndex = prev.sectors.findIndex((sector) => sector.id === draggedSectorId);
+      const toIndex = prev.sectors.findIndex((sector) => sector.id === targetId);
+
+      if (fromIndex === -1 || toIndex === -1) {
+        return prev;
+      }
+
+      const updated = [...prev.sectors];
+      const [draggedSector] = updated.splice(fromIndex, 1);
+      const insertionIndex = toIndex > fromIndex ? toIndex - 1 : toIndex;
+      updated.splice(insertionIndex, 0, draggedSector);
+
+      return {
+        ...prev,
+        sectors: updated,
+      };
+    });
+
+    handleSectorDragEnd();
+  }
+
+  function handleSectorListDragOver(event: React.DragEvent<HTMLDivElement>) {
+    if (!draggedSectorId) {
+      return;
+    }
+
+    if ((event.target as HTMLElement | null)?.closest(".dc-mission-sector-card")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    setDragOverSectorId((prev) => (prev === null ? prev : null));
+  }
+
+  function handleSectorListDrop(event: React.DragEvent<HTMLDivElement>) {
+    if (!draggedSectorId) {
+      return;
+    }
+
+    if ((event.target as HTMLElement | null)?.closest(".dc-mission-sector-card")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    setMission((prev) => {
+      const fromIndex = prev.sectors.findIndex((sector) => sector.id === draggedSectorId);
+
+      if (fromIndex === -1 || fromIndex === prev.sectors.length - 1) {
+        return prev;
+      }
+
+      const updated = [...prev.sectors];
+      const [draggedSector] = updated.splice(fromIndex, 1);
+      updated.push(draggedSector);
+
+      return {
+        ...prev,
+        sectors: updated,
+      };
+    });
+
+    handleSectorDragEnd();
+  }
+
+  function handleSectorDragEnd() {
+    setDraggedSectorId(null);
+    setDragOverSectorId(null);
+  }
+
   const isMissionLocked = mission.status === "active";
   const trimmedMissionName = mission.name.trim();
   const trimmedMissionObjective = mission.objective.trim();
@@ -336,24 +469,57 @@ export default function MissionSetup(props: MissionSetupProps) {
               <p>Define the terrain and threats for each sector of engagement.</p>
             </header>
 
-            <div className="dc-mission-sector-list">
+            <div
+              className="dc-mission-sector-list"
+              onDragOver={handleSectorListDragOver}
+              onDrop={handleSectorListDrop}
+            >
               {mission.sectors.length === 0 ? (
                 <p className="dc-mission-sectors-empty">
                   No sectors assigned yet. Add sectors to break down the battlefield.
                 </p>
               ) : (
-                mission.sectors.map((sector) => (
-                  <article className="dc-mission-sector-card" key={sector.id}>
+                mission.sectors.map((sector) => {
+                  const sectorCardClassName = [
+                    "dc-mission-sector-card",
+                    draggedSectorId === sector.id ? "is-dragging" : "",
+                    dragOverSectorId === sector.id ? "is-drag-over" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  return (
+                    <article
+                      key={sector.id}
+                      className={sectorCardClassName}
+                      data-sector-id={sector.id}
+                      draggable
+                      onDragStart={(event) => handleSectorDragStart(event, sector.id)}
+                      onDragOver={(event) => handleSectorDragOver(event, sector.id)}
+                      onDrop={(event) => handleSectorDrop(event, sector.id)}
+                      onDragEnd={handleSectorDragEnd}
+                    >
                     <div className="dc-mission-sector-card-top">
-                      <input
-                        type="text"
-                        className="dc-input dc-mission-sector-name"
-                        value={sector.name}
-                        onChange={(event) =>
-                          handleSectorFieldChange(sector.id, "name", event.target.value)
-                        }
-                        placeholder="Sector name"
-                      />
+                        <div className="dc-mission-sector-card-title">
+                          <button
+                            type="button"
+                            className="dc-mission-sector-drag-handle"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            data-drag-handle="true"
+                          >
+                            <span className="dc-mission-sector-drag-icon" aria-hidden="true" />
+                          </button>
+                          <input
+                            type="text"
+                            className="dc-input dc-mission-sector-name"
+                            value={sector.name}
+                            onChange={(event) =>
+                              handleSectorFieldChange(sector.id, "name", event.target.value)
+                            }
+                            placeholder="Sector name"
+                          />
+                        </div>
                       <div className="dc-mission-sector-card-actions">
                         <button
                           type="button"
@@ -436,8 +602,9 @@ export default function MissionSetup(props: MissionSetupProps) {
                         </select>
                       </label>
                     </div>
-                  </article>
-                ))
+                    </article>
+                  );
+                })
               )}
             </div>
 
