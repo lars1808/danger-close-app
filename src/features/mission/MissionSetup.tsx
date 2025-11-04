@@ -23,6 +23,11 @@ export const MISSION_CONTENT_OPTIONS: T.MissionContent[] = [
   "TL 3",
   "TL 4",
 ];
+export const MISSION_WEATHER_OPTIONS: T.MissionWeather[] = [
+  "Normal",
+  "Bad",
+  "Terrible",
+];
 const MISSION_DIFFICULTY_OPTIONS: T.Difficulty[] = ["Routine", "Hazardous", "Desperate"];
 const MISSION_AIRSPACE_OPTIONS: T.Airspace[] = ["Clear", "Contested", "Hostile"];
 const MISSION_STATUS_OPTIONS: Array<T.Mission["status"]> = ["planning", "active", "complete"];

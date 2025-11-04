@@ -1041,6 +1041,20 @@ h1, h2, h3 {
   color: var(--text);
 }
 
+:root.theme-terminal .dc-mission-sector-weather-option {
+  border-color: rgba(0, 255, 0, 0.35);
+  background: rgba(0, 64, 0, 0.4);
+}
+
+:root.theme-terminal .dc-mission-sector-weather-option.is-active {
+  border-color: rgba(0, 255, 0, 0.75);
+  background: rgba(0, 128, 0, 0.45);
+}
+
+:root.theme-terminal .dc-mission-sector-weather-option:hover {
+  border-color: rgba(0, 255, 0, 0.55);
+}
+
 :root.theme-terminal .dc-mission-sector-name::placeholder {
   color: rgba(0, 255, 0, 0.6);
 }

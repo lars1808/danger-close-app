@@ -9,6 +9,7 @@ import MissionSetup, {
 import EngagementTab from "./features/engagement/EngagementTab";
 import "./styles/danger-close.css";
 import * as T from "./features/squad/types";
+import { isThreatContent } from "./features/mission/missionUtils";
 
 type TabName = "squad" | "mission" | "engagement" | "log";
 type Theme = "default" | "terminal";
