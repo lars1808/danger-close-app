@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as T from "../squad/types";
 import { getStoredSquadName } from "../squad/storageKeys";
 
@@ -17,6 +17,36 @@ const MISSION_CONTENT_OPTIONS: T.MissionContent[] = [
 const MISSION_DIFFICULTY_OPTIONS: T.Difficulty[] = ["Routine", "Hazardous", "Desperate"];
 const MISSION_AIRSPACE_OPTIONS: T.Airspace[] = ["Clear", "Contested", "Hostile"];
 const MISSION_STATUS_OPTIONS: Array<T.Mission["status"]> = ["planning", "active", "complete"];
+
+const MISSION_CONTENT_ROLL_TABLE = {
+  Routine: {
+    1: "TL 2",
+    2: "TL 1",
+    3: "TL 1",
+    4: "TL 1",
+    5: "Nothing",
+    6: "Boon",
+  },
+  Hazardous: {
+    1: "TL 3",
+    2: "TL 1",
+    3: "TL 1",
+    4: "TL 2",
+    5: "Nothing",
+    6: "Boon",
+  },
+  Desperate: {
+    1: "TL 4",
+    2: "TL 3",
+    3: "TL 2",
+    4: "TL 2",
+    5: "TL 2",
+    6: "Boon",
+  },
+} as const satisfies Record<
+  T.Difficulty,
+  Record<1 | 2 | 3 | 4 | 5 | 6, T.MissionContent>
+>;
 
 const MISSION_OBJECTIVES = [
   // Seize & Secure
@@ -141,6 +171,25 @@ function rollD6(): number {
   return Math.floor(Math.random() * 6) + 1;
 }
 
+function getRandomCover(): T.MissionCover {
+  const roll = rollD6();
+  if (roll === 1) return "Exposed";
+  if (roll <= 4) return "Normal";
+  return "Dense";
+}
+
+function getRandomSpace(): T.MissionSpace {
+  const roll = rollD6();
+  if (roll === 1) return "Tight";
+  if (roll <= 4) return "Transitional";
+  return "Open";
+}
+
+function getRandomContent(difficulty: T.Difficulty): T.MissionContent {
+  const roll = rollD6() as 1 | 2 | 3 | 4 | 5 | 6;
+  return MISSION_CONTENT_ROLL_TABLE[difficulty][roll];
+}
+
 // Helper function to pick random objective
 function getRandomObjective(): string {
   const randomMission = MISSION_OBJECTIVES[Math.floor(Math.random() * MISSION_OBJECTIVES.length)];
@@ -172,11 +221,39 @@ export default function MissionSetup(props: MissionSetupProps) {
   });
   const [draggedSectorId, setDraggedSectorId] = useState<string | null>(null);
   const [dragOverSectorId, setDragOverSectorId] = useState<string | null>(null);
+  const [currentSectorId, setCurrentSectorId] = useState<string | null>(null);
+  const [randomizingSectorId, setRandomizingSectorId] = useState<string | null>(null);
+  const randomizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isMissionLocked = mission.status === "active";
 
   // Auto-save to localStorage
   useEffect(() => {
     localStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(mission));
   }, [mission]);
+
+  useEffect(() => {
+    if (!isMissionLocked) {
+      setCurrentSectorId(null);
+      return;
+    }
+
+    setCurrentSectorId((previous) => {
+      if (previous && mission.sectors.some((sector) => sector.id === previous)) {
+        return previous;
+      }
+
+      return mission.sectors[0]?.id ?? null;
+    });
+  }, [isMissionLocked, mission.sectors]);
+
+  useEffect(() => {
+    return () => {
+      if (randomizeTimeoutRef.current) {
+        clearTimeout(randomizeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
     setMission((prev) => ({ ...prev, name: e.target.value }));
@@ -266,6 +343,58 @@ export default function MissionSetup(props: MissionSetupProps) {
         },
       ],
     }));
+  }
+
+  function handleSectorRandomize(id: string) {
+    if (randomizeTimeoutRef.current) {
+      clearTimeout(randomizeTimeoutRef.current);
+    }
+
+    setRandomizingSectorId(id);
+    randomizeTimeoutRef.current = setTimeout(() => {
+      setRandomizingSectorId((current) => (current === id ? null : current));
+    }, 500);
+
+    setMission((prev) => {
+      const nextCover = getRandomCover();
+      const nextSpace = getRandomSpace();
+      const nextContent = getRandomContent(prev.difficulty);
+
+      return {
+        ...prev,
+        sectors: prev.sectors.map((sector) =>
+          sector.id === id
+            ? {
+                ...sector,
+                cover: nextCover,
+                space: nextSpace,
+                content: nextContent,
+              }
+            : sector,
+        ),
+      };
+    });
+  }
+
+  function handleCurrentSectorChange(sectorId: string) {
+    if (currentSectorId === sectorId) {
+      return;
+    }
+
+    const previousSector = mission.sectors.find((sector) => sector.id === currentSectorId);
+    const nextSector = mission.sectors.find((sector) => sector.id === sectorId);
+
+    if (!nextSector) {
+      return;
+    }
+
+    const storedSquadName = getStoredSquadName().trim();
+    const squadName = storedSquadName || "Unnamed Squad";
+    const previousName = previousSector?.name.trim() || "Staging Area";
+    const nextName = nextSector.name.trim() || "Unnamed Sector";
+
+    onAddLog(`${squadName} MOVEMENT: ${previousName} >> ${nextName}`, "SYSTEM");
+    setCurrentSectorId(sectorId);
   }
 
   function handleSectorFieldChange<TKey extends keyof T.MissionSector>(
@@ -424,7 +553,6 @@ export default function MissionSetup(props: MissionSetupProps) {
     setDragOverSectorId(null);
   }
 
-  const isMissionLocked = mission.status === "active";
   const trimmedMissionName = mission.name.trim();
   const trimmedMissionObjective = mission.objective.trim();
   const deployDisabled = !trimmedMissionName;
@@ -484,9 +612,12 @@ export default function MissionSetup(props: MissionSetupProps) {
                     "dc-mission-sector-card",
                     draggedSectorId === sector.id ? "is-dragging" : "",
                     dragOverSectorId === sector.id ? "is-drag-over" : "",
+                    currentSectorId === sector.id ? "is-current" : "",
+                    randomizingSectorId === sector.id ? "is-rolling" : "",
                   ]
                     .filter(Boolean)
                     .join(" ");
+                  const currentInputId = `mission-sector-${sector.id}-current`;
 
                   return (
                     <article
@@ -513,10 +644,22 @@ export default function MissionSetup(props: MissionSetupProps) {
                           />
                         </div>
                       <div className="dc-mission-sector-card-actions">
+                        {isMissionLocked && (
+                          <label className="dc-mission-sector-current" htmlFor={currentInputId}>
+                            <input
+                              id={currentInputId}
+                              type="radio"
+                              name="mission-current-sector"
+                              checked={currentSectorId === sector.id}
+                              onChange={() => handleCurrentSectorChange(sector.id)}
+                            />
+                            <span>Current Position</span>
+                          </label>
+                        )}
                         <button
                           type="button"
                           className="dc-btn dc-btn--sm dc-mission-sector-randomize"
-                          onClick={() => {}}
+                          onClick={() => handleSectorRandomize(sector.id)}
                         >
                           Randomize
                         </button>
