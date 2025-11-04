@@ -208,6 +208,7 @@ export type Airspace = 'Clear' | 'Contested' | 'Hostile';
 export type MissionCover = 'Exposed' | 'Normal' | 'Dense';
 export type MissionSpace = 'Tight' | 'Transitional' | 'Open';
 export type MissionContent = 'Boon' | 'Nothing' | 'TL 1' | 'TL 2' | 'TL 3' | 'TL 4';
+export type MissionWeather = 'Normal' | 'Bad' | 'Terrible';
 
 export interface MissionSector {
   id: string;
@@ -215,6 +216,7 @@ export interface MissionSector {
   cover: MissionCover;
   space: MissionSpace;
   content: MissionContent;
+  weather: MissionWeather;
 }
 
 export interface Mission {
