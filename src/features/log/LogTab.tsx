@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as T from "../squad/types";
 
 interface LogTabProps {
@@ -14,6 +14,14 @@ export default function LogTab(props: LogTabProps) {
   const [editingText, setEditingText] = useState("");
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const logFeedRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = logFeedRef.current;
+    if (node) {
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [entries]);
 
   // Helper: Format current time as HH:MM:SS
   function getCurrentTimestamp(): string {
@@ -143,6 +151,13 @@ export default function LogTab(props: LogTabProps) {
     setDragOverId(null);
   }
 
+  function clearLog() {
+    if (entries.length === 0) return;
+    if (confirm("Clear all log entries?")) {
+      onUpdateEntries([]);
+    }
+  }
+
   return (
     <div>
       <h2>Mission Log</h2>
@@ -158,10 +173,13 @@ export default function LogTab(props: LogTabProps) {
         <button className="dc-btn" onClick={downloadLogAsText} disabled={entries.length === 0}>
           Download .TXT
         </button>
+        <button className="dc-btn" onClick={clearLog} disabled={entries.length === 0}>
+          Clear Log
+        </button>
       </div>
 
       {/* LOG ENTRIES DISPLAY */}
-      <div className="dc-log-feed">
+      <div className="dc-log-feed" ref={logFeedRef}>
         {entries.length === 0 ? (
           <p className="dc-log-empty">No log entries yet.</p>
         ) : (
