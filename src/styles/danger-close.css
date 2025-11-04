@@ -420,6 +420,197 @@ h1, h2, h3 {
   box-shadow: 0 18px 44px rgba(0, 255, 0, 0.25);
 }
 
+.dc-mission-sectors {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+  padding: 20px 22px 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(14, 15, 16, 0.92), rgba(18, 19, 20, 0.7));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
+}
+
+.dc-mission-sectors-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dc-mission-sectors-header h4 {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  font-family: var(--font-display);
+}
+
+.dc-mission-sectors-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.dc-mission-sector-list {
+  display: grid;
+  gap: 16px;
+}
+
+.dc-mission-sectors-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(15, 16, 18, 0.65);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.dc-mission-sector-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 13, 15, 0.8);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+}
+
+.dc-mission-sector-card-top {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-mission-sector-name {
+  width: 100%;
+}
+
+.dc-mission-sector-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dc-mission-sector-randomize {
+  background: rgba(96, 108, 56, 0.18);
+  border-color: rgba(96, 108, 56, 0.4);
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dc-mission-sector-randomize:hover {
+  background: rgba(96, 108, 56, 0.28);
+}
+
+.dc-mission-sector-delete {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.dc-mission-sector-delete:hover {
+  color: var(--text);
+}
+
+.dc-mission-sector-controls {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.dc-mission-sector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.dc-mission-sector-field span {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-mission-sector-add {
+  align-self: flex-start;
+  padding: 10px 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(221, 161, 94, 0.15);
+  border-color: rgba(221, 161, 94, 0.45);
+}
+
+.dc-mission-sector-add:hover {
+  background: rgba(221, 161, 94, 0.28);
+}
+
+@media (min-width: 640px) {
+  .dc-mission-sector-card-top {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .dc-mission-sector-card-actions {
+    justify-content: flex-end;
+  }
+}
+
+:root.theme-terminal .dc-mission-sectors {
+  border-color: rgba(0, 255, 0, 0.3);
+  background: linear-gradient(145deg, rgba(9, 26, 9, 0.92), rgba(9, 26, 9, 0.72));
+  box-shadow: 0 14px 36px rgba(0, 255, 0, 0.18);
+}
+
+:root.theme-terminal .dc-mission-sectors-empty {
+  border-color: rgba(0, 255, 0, 0.32);
+  background: rgba(0, 64, 0, 0.45);
+}
+
+:root.theme-terminal .dc-mission-sector-card {
+  border-color: rgba(0, 255, 0, 0.25);
+  background: rgba(0, 40, 0, 0.6);
+  box-shadow: 0 12px 28px rgba(0, 255, 0, 0.15);
+}
+
+:root.theme-terminal .dc-mission-sector-randomize {
+  background: rgba(0, 128, 0, 0.25);
+  border-color: rgba(0, 255, 0, 0.4);
+}
+
+:root.theme-terminal .dc-mission-sector-randomize:hover {
+  background: rgba(0, 128, 0, 0.4);
+}
+
+:root.theme-terminal .dc-mission-sector-delete {
+  color: rgba(0, 255, 0, 0.85);
+}
+
+:root.theme-terminal .dc-mission-sector-delete:hover {
+  color: var(--text);
+}
+
+:root.theme-terminal .dc-mission-sector-add {
+  background: rgba(0, 255, 0, 0.18);
+  border-color: rgba(0, 255, 0, 0.4);
+  color: #041704;
+  box-shadow: 0 0 16px rgba(0, 255, 0, 0.25);
+}
+
+:root.theme-terminal .dc-mission-sector-add:hover {
+  background: rgba(0, 255, 0, 0.28);
+}
+
 /* ==================== TABLE WRAPPER ==================== */
 .dc-table-wrap {
   background: var(--panel);

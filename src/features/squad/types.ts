@@ -205,6 +205,18 @@ export const SPECIAL_GEAR_INDEX = Object.fromEntries(SPECIAL_GEAR.map(g => [g.id
 export type Difficulty = 'Routine' | 'Hazardous' | 'Desperate';
 export type Airspace = 'Clear' | 'Contested' | 'Hostile';
 
+export type MissionCover = 'Exposed' | 'Normal' | 'Dense';
+export type MissionSpace = 'Tight' | 'Transitional' | 'Open';
+export type MissionContent = 'Boon' | 'Nothing' | 'TL 1' | 'TL 2' | 'TL 3' | 'TL 4';
+
+export interface MissionSector {
+  id: string;
+  name: string;
+  cover: MissionCover;
+  space: MissionSpace;
+  content: MissionContent;
+}
+
 export interface Mission {
   id: string;
   name: string;
@@ -213,6 +225,7 @@ export interface Mission {
   airspace: Airspace;
   status: 'planning' | 'active' | 'complete';
   startTime?: number;
+  sectors: MissionSector[];
 }
 
 // ===== LOG ENTRIES =====
