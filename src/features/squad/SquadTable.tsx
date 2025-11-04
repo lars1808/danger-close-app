@@ -5,11 +5,11 @@ const STORAGE_KEY = "danger-close-squad";
 const SQUAD_NAME_STORAGE_KEY = "danger-close-squad-name";
 
 const defaultTroopers: T.Trooper[] = [
-  { id: 1, name: "Aelius",    status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle",  armorId: "medium", biography: "" },
-  { id: 2, name: "Brennus",   status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "carbine",        armorId: "light", biography: "" },
-  { id: 3, name: "Cassander", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle",  armorId: "medium", biography: "" },
-  { id: 4, name: "Decimus",   status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle",  armorId: "heavy", biography: "" },
-  { id: 5, name: "Ector",     status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "marksman_rifle", armorId: "light", biography: "" },
+  { id: 1, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
+  { id: 2, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
+  { id: 3, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
+  { id: 4, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
+  { id: 5, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
 ];
 
 interface SquadTableProps {
@@ -63,7 +63,7 @@ export default function SquadTable(props: SquadTableProps) {
 
   function resetSquad() {
     if (confirm("Reset squad to defaults?")) {
-      setTroopers(defaultTroopers);
+      setTroopers(defaultTroopers.map((trooper) => ({ ...trooper })));
       localStorage.removeItem(STORAGE_KEY);
       setSquadName("");
       localStorage.removeItem(SQUAD_NAME_STORAGE_KEY);
