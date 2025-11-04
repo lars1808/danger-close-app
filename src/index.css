@@ -66,6 +66,7 @@ main {
   width: 100%;
   display: flex;
   justify-content: center;
+  padding: clamp(16px, 5vw, 48px) 0 clamp(40px, 8vw, 72px);
 }
 
 @media (prefers-color-scheme: light) {
