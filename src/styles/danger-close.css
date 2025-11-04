@@ -121,26 +121,27 @@ h1, h2, h3 {
 }
 
 .dc-title {
-  font-size: clamp(28px, 4vw, 56px);
-  margin: 24px 0 12px;
+  font-size: clamp(26px, 3.4vw, 48px);
+  margin: 12px 0 4px;
   line-height: 1.1;
+  text-align: center;
   text-shadow: var(--glow);
 }
 
 .dc-subtle-rule {
   height: 3px;
-  width: 240px;
+  width: min(240px, 60%);
   background: linear-gradient(90deg, var(--accent-2), var(--accent));
   border-radius: 2px;
-  margin: 6px 0 18px;
+  margin: 4px auto 20px;
   opacity: 0.8;
 }
 
 /* ==================== LAYOUT ==================== */
 .dc-container {
-  width: min(900px, 95%);
+  width: min(960px, 94%);
   margin: 0 auto;
-  padding: 20px 16px 32px;
+  padding: clamp(24px, 5vw, 44px) clamp(18px, 5vw, 48px) clamp(40px, 7vw, 72px);
 }
 
 .dc-toolbar {
@@ -230,6 +231,57 @@ h1, h2, h3 {
 .dc-select:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
+}
+
+/* ==================== MISSION SETUP ==================== */
+.dc-mission-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dc-mission-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dc-mission-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.dc-mission-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.dc-mission-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.dc-mission-btn {
+  width: 100%;
+  padding: 10px 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.dc-mission-btn--clear {
+  background: #161719;
+  border-color: #272a2d;
+  color: var(--text-dim);
+}
+
+.dc-mission-btn--clear:hover {
+  background: #1d1f21;
+  color: var(--text);
 }
 
 /* ==================== TABLE WRAPPER ==================== */
@@ -558,13 +610,15 @@ input[type="checkbox"]:hover {
 /* ==================== TAB NAVIGATION ==================== */
 .dc-tab-nav {
   display: flex;
-  gap: 8px;
-  margin: 20px 0;
+  gap: 12px;
+  margin: 16px 0 24px;
+  justify-content: center;
+  padding-bottom: 8px;
   border-bottom: 2px solid var(--border);
 }
 
 .dc-tab-btn {
-  padding: 10px 16px;
+  padding: 10px 18px;
   background: transparent;
   color: var(--text-dim);
   border: none;
@@ -923,8 +977,9 @@ input[type="checkbox"]:hover {
 /* ==================== THEME TOGGLE ==================== */
 .dc-theme-toggle {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+  margin: 8px 0 12px;
   justify-content: center;
 }
 
