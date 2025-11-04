@@ -112,6 +112,14 @@ export default function MissionSetup(props: MissionSetupProps) {
     }));
   }
 
+  function handleEditMission() {
+    setMission((prev) => ({
+      ...prev,
+      status: "planning",
+      startTime: undefined,
+    }));
+  }
+
   function handleRandomize() {
     setMission((prev) => ({
       ...prev,
@@ -123,14 +131,20 @@ export default function MissionSetup(props: MissionSetupProps) {
   }
 
   function handleDeploySquad() {
+    if (!mission.name.trim()) {
+      return;
+    }
+
     const storedSquadName = getStoredSquadName().trim();
     const squadName = storedSquadName || "Unnamed Squad";
-    const missionName = mission.name.trim() || "Untitled Mission";
+    const missionName = mission.name.trim();
     const missionObjective = mission.objective.trim() || "Objective Pending";
     const { difficulty, airspace } = mission;
 
     setMission((prev) => ({
       ...prev,
+      name: prev.name.trim(),
+      objective: prev.objective.trim(),
       status: "active",
       startTime: prev.startTime ?? Date.now(),
     }));
@@ -139,85 +153,125 @@ export default function MissionSetup(props: MissionSetupProps) {
     onAddLog(logMessage, "SYSTEM");
   }
 
+  const isMissionLocked = mission.status === "active";
+  const trimmedMissionName = mission.name.trim();
+  const trimmedMissionObjective = mission.objective.trim();
+  const deployDisabled = !trimmedMissionName;
+
   return (
     <div className="dc-mission-setup">
-      {/* Mission Name */}
-      <div className="dc-mission-field">
-        <label className="dc-mission-label">Mission Name</label>
-        <input
-          type="text"
-          className="dc-input dc-mission-name-input"
-          value={mission.name}
-          onChange={handleNameChange}
-          placeholder="e.g. Operation Nightfall"
-        />
-      </div>
-
-      {/* Objective */}
-      <div className="dc-mission-field">
-        <label className="dc-mission-label">Objective</label>
-        <textarea
-          className="dc-input dc-mission-objective-input"
-          value={mission.objective}
-          onChange={handleObjectiveChange}
-          placeholder="e.g. Seize & Secure / Assault"
-          rows={4}
-        />
-      </div>
-
-      {/* Difficulty & Airspace Row */}
-      <div className="dc-mission-row">
-        <div className="dc-mission-field">
-          <label className="dc-mission-label">Difficulty</label>
-          <select
-            className="dc-select dc-mission-select"
-            value={mission.difficulty}
-            onChange={handleDifficultyChange}
+      {isMissionLocked ? (
+        <div className="dc-mission-summary" aria-live="polite">
+          <div className="dc-mission-summary-main">
+            <span className="dc-mission-summary-heading">Mission Locked</span>
+            <h3 className="dc-mission-summary-title">
+              {trimmedMissionName || "Untitled Mission"}
+            </h3>
+          </div>
+          <dl className="dc-mission-summary-details">
+            <div>
+              <dt>Objective</dt>
+              <dd>{trimmedMissionObjective || "Objective Pending"}</dd>
+            </div>
+            <div>
+              <dt>Difficulty</dt>
+              <dd>{mission.difficulty}</dd>
+            </div>
+            <div>
+              <dt>Airspace</dt>
+              <dd>{mission.airspace}</dd>
+            </div>
+          </dl>
+          <button
+            type="button"
+            className="dc-btn dc-mission-summary-edit"
+            onClick={handleEditMission}
           >
-            <option value="Routine">Routine</option>
-            <option value="Hazardous">Hazardous</option>
-            <option value="Desperate">Desperate</option>
-          </select>
+            EDIT MISSION
+          </button>
         </div>
+      ) : (
+        <>
+          {/* Mission Name */}
+          <div className="dc-mission-field">
+            <label className="dc-mission-label">Mission Name</label>
+            <input
+              type="text"
+              className="dc-input dc-mission-name-input"
+              value={mission.name}
+              onChange={handleNameChange}
+              placeholder="e.g. Operation Nightfall"
+            />
+          </div>
 
-        <div className="dc-mission-field">
-          <label className="dc-mission-label">Airspace</label>
-          <select
-            className="dc-select dc-mission-select"
-            value={mission.airspace}
-            onChange={handleAirspaceChange}
-          >
-            <option value="Clear">Clear</option>
-            <option value="Contested">Contested</option>
-            <option value="Hostile">Hostile</option>
-          </select>
-        </div>
-      </div>
+          {/* Objective */}
+          <div className="dc-mission-field">
+            <label className="dc-mission-label">Objective</label>
+            <textarea
+              className="dc-input dc-mission-objective-input"
+              value={mission.objective}
+              onChange={handleObjectiveChange}
+              placeholder="e.g. Seize & Secure / Assault"
+              rows={4}
+            />
+          </div>
 
-      {/* Buttons Row */}
-      <div className="dc-mission-buttons">
-        <button
-          type="button"
-          className="dc-btn dc-mission-btn dc-mission-btn--clear"
-          onClick={handleClearMission}
-        >
-          CLEAR
-        </button>
-        <button
-          type="button"
-          className="dc-btn dc-mission-btn dc-mission-btn--randomize"
-          onClick={handleRandomize}
-        >
-          RANDOMIZE
-        </button>
-        <button
-          type="button"
-          className="dc-btn dc-mission-btn dc-mission-btn--deploy"
-          onClick={handleDeploySquad}
-        >
-          DEPLOY SQUAD
-        </button>
-      </div>
+          {/* Difficulty & Airspace Row */}
+          <div className="dc-mission-row">
+            <div className="dc-mission-field">
+              <label className="dc-mission-label">Difficulty</label>
+              <select
+                className="dc-select dc-mission-select"
+                value={mission.difficulty}
+                onChange={handleDifficultyChange}
+              >
+                <option value="Routine">Routine</option>
+                <option value="Hazardous">Hazardous</option>
+                <option value="Desperate">Desperate</option>
+              </select>
+            </div>
+
+            <div className="dc-mission-field">
+              <label className="dc-mission-label">Airspace</label>
+              <select
+                className="dc-select dc-mission-select"
+                value={mission.airspace}
+                onChange={handleAirspaceChange}
+              >
+                <option value="Clear">Clear</option>
+                <option value="Contested">Contested</option>
+                <option value="Hostile">Hostile</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Buttons Row */}
+          <div className="dc-mission-buttons">
+            <button
+              type="button"
+              className="dc-btn dc-mission-btn dc-mission-btn--clear"
+              onClick={handleClearMission}
+            >
+              CLEAR
+            </button>
+            <button
+              type="button"
+              className="dc-btn dc-mission-btn dc-mission-btn--randomize"
+              onClick={handleRandomize}
+            >
+              RANDOMIZE
+            </button>
+            <button
+              type="button"
+              className="dc-btn dc-mission-btn dc-mission-btn--deploy"
+              onClick={handleDeploySquad}
+              disabled={deployDisabled}
+            >
+              DEPLOY SQUAD
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
