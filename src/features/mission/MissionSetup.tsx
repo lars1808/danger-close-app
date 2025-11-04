@@ -170,6 +170,8 @@ export default function MissionSetup(props: MissionSetupProps) {
     const saved = localStorage.getItem(MISSION_STORAGE_KEY);
     return saved ? normalizeMission(JSON.parse(saved)) : normalizeMission(undefined);
   });
+  const [draggedSectorId, setDraggedSectorId] = useState<string | null>(null);
+  const [dragOverSectorId, setDragOverSectorId] = useState<string | null>(null);
 
   // Auto-save to localStorage
   useEffect(() => {
