@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import * as T from "./types";
-
-const STORAGE_KEY = "danger-close-squad";
-const SQUAD_NAME_STORAGE_KEY = "danger-close-squad-name";
+import {
+  SQUAD_STORAGE_KEY,
+  SQUAD_NAME_STORAGE_KEY,
+  SQUAD_UPDATED_EVENT,
+} from "./storageKeys";
 
 const defaultTroopers: T.Trooper[] = [
   { id: 1, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
@@ -18,7 +20,7 @@ interface SquadTableProps {
 export default function SquadTable(props: SquadTableProps) {
   const { onAddLog } = props;
   const [troopers, setTroopers] = useState<T.Trooper[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(SQUAD_STORAGE_KEY);
     const base = saved ? (JSON.parse(saved) as Partial<T.Trooper>[]) : defaultTroopers;
     return base.map((r, i) => {
       const d = defaultTroopers[i] ?? defaultTroopers[0];
@@ -41,7 +43,8 @@ export default function SquadTable(props: SquadTableProps) {
   const [squadName, setSquadName] = useState<string>(() => localStorage.getItem(SQUAD_NAME_STORAGE_KEY) ?? "");
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(troopers));
+    localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(troopers));
+    window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
   }, [troopers]);
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export default function SquadTable(props: SquadTableProps) {
   function resetSquad() {
     if (confirm("Reset squad to defaults?")) {
       setTroopers(defaultTroopers.map((trooper) => ({ ...trooper })));
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SQUAD_STORAGE_KEY);
       setSquadName("");
       localStorage.removeItem(SQUAD_NAME_STORAGE_KEY);
     }

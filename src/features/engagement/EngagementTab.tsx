@@ -1,6 +1,10 @@
 import React from "react";
 import * as T from "../squad/types";
-import { getStoredSquadName } from "../squad/storageKeys";
+import {
+  getStoredSquad,
+  getStoredSquadName,
+  SQUAD_UPDATED_EVENT,
+} from "../squad/storageKeys";
 import {
   getSectorDisplayName,
   isThreatContent,
@@ -45,6 +49,35 @@ const THREAT_LEVEL_DETAILS: Record<ThreatContent, { label: string; tone: string 
   "TL 4": { label: "Overwhelming", tone: "tl4" },
 };
 
+const WOUNDED_STATUSES: readonly T.Status[] = ["Wounded", "Bleeding Out", "Dead"];
+
+const WEATHER_MODIFIERS: Record<T.MissionWeather, number> = {
+  Normal: 0,
+  Bad: -1,
+  Terrible: -2,
+};
+
+const ADVANCE_ROLL_TICK_INTERVAL = 120;
+const ADVANCE_ROLL_ANIMATION_DURATION = 900;
+
+function formatModifier(value: number): string {
+  if (value > 0) {
+    return `+${value}`;
+  }
+  return value.toString();
+}
+
+function clampNonNegativeInteger(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
+function computeFatigueModifier(advanceRolls: number): number {
+  return -Math.floor(advanceRolls / 3);
+}
+
 interface EngagementTabProps {
   mission: T.Mission;
   currentSectorId: string | null;
@@ -56,6 +89,35 @@ interface EngagementTabProps {
 export default function EngagementTab(props: EngagementTabProps) {
   const { mission, currentSectorId, onCurrentSectorChange, onMissionChange, onAddLog } = props;
 
+  const [storedSquad, setStoredSquad] = React.useState<Partial<T.Trooper>[]>(() => getStoredSquad());
+  const [advanceRolls, setAdvanceRolls] = React.useState(0);
+  const [customModifier, setCustomModifier] = React.useState(0);
+  const [diceValues, setDiceValues] = React.useState<{ val1: number | null; val2: number | null }>({
+    val1: null,
+    val2: null,
+  });
+  const [isRolling, setIsRolling] = React.useState(false);
+  const [lastOutcome, setLastOutcome] = React.useState<number | null>(null);
+
+  const rollIntervalRef = React.useRef<number | null>(null);
+  const rollTimeoutRef = React.useRef<number | null>(null);
+  const previousSectorIdRef = React.useRef<string | null>(null);
+
+  const handleStoredSquadUpdate = React.useCallback(() => {
+    setStoredSquad(getStoredSquad());
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    window.addEventListener(SQUAD_UPDATED_EVENT, handleStoredSquadUpdate);
+    return () => {
+      window.removeEventListener(SQUAD_UPDATED_EVENT, handleStoredSquadUpdate);
+    };
+  }, [handleStoredSquadUpdate]);
+
   const threatSectors = React.useMemo(
     () =>
       mission.sectors.filter(
@@ -66,6 +128,160 @@ export default function EngagementTab(props: EngagementTabProps) {
   );
 
   const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
+
+  const injuriesModifier = React.useMemo(() => {
+    const woundedCount = storedSquad.reduce((count, trooper) => {
+      const status = trooper.status as T.Status | undefined;
+      if (status && WOUNDED_STATUSES.includes(status)) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+
+    if (woundedCount >= 3) {
+      return -2;
+    }
+    if (woundedCount > 0) {
+      return -1;
+    }
+    return 0;
+  }, [storedSquad]);
+
+  const mobilityModifier = React.useMemo(() => {
+    if (storedSquad.length === 0) {
+      return 0;
+    }
+
+    const troopersWithArmor = storedSquad.filter((trooper) => typeof trooper.armorId === "string");
+    if (troopersWithArmor.length === 0) {
+      return 0;
+    }
+
+    const allLight = troopersWithArmor.every((trooper) => trooper.armorId === "light");
+    if (allLight) {
+      return 1;
+    }
+
+    const anyHeavy = troopersWithArmor.some((trooper) => trooper.armorId === "heavy");
+    if (anyHeavy) {
+      return -1;
+    }
+
+    return 0;
+  }, [storedSquad]);
+
+  const weatherModifier = selectedSector ? WEATHER_MODIFIERS[selectedSector.weather] : 0;
+  const fatigueModifier = React.useMemo(
+    () => computeFatigueModifier(advanceRolls),
+    [advanceRolls],
+  );
+
+  const sumModifier = React.useMemo(
+    () => injuriesModifier + mobilityModifier + fatigueModifier + weatherModifier + customModifier,
+    [injuriesModifier, mobilityModifier, fatigueModifier, weatherModifier, customModifier],
+  );
+
+  const injuriesDisplay = React.useMemo(() => formatModifier(injuriesModifier), [injuriesModifier]);
+  const mobilityDisplay = React.useMemo(() => formatModifier(mobilityModifier), [mobilityModifier]);
+  const fatigueDisplay = React.useMemo(() => formatModifier(fatigueModifier), [fatigueModifier]);
+  const weatherDisplay = React.useMemo(() => formatModifier(weatherModifier), [weatherModifier]);
+  const sumDisplay = React.useMemo(() => formatModifier(sumModifier), [sumModifier]);
+  const diceVal1Display = diceValues.val1 === null ? "-" : String(diceValues.val1);
+  const diceVal2Display = diceValues.val2 === null ? "-" : String(diceValues.val2);
+  const lastOutcomeDisplay = lastOutcome === null ? "-" : String(lastOutcome);
+
+  React.useEffect(() => {
+    return () => {
+      if (rollIntervalRef.current !== null) {
+        window.clearInterval(rollIntervalRef.current);
+        rollIntervalRef.current = null;
+      }
+      if (rollTimeoutRef.current !== null) {
+        window.clearTimeout(rollTimeoutRef.current);
+        rollTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const currentId = selectedSector?.id ?? null;
+    const previousId = previousSectorIdRef.current;
+    const shouldReset = !selectedSector || (previousId && currentId && previousId !== currentId);
+
+    if (shouldReset) {
+      setAdvanceRolls(0);
+      setCustomModifier(0);
+      setDiceValues({ val1: null, val2: null });
+      setLastOutcome(null);
+      if (rollIntervalRef.current !== null) {
+        window.clearInterval(rollIntervalRef.current);
+        rollIntervalRef.current = null;
+      }
+      if (rollTimeoutRef.current !== null) {
+        window.clearTimeout(rollTimeoutRef.current);
+        rollTimeoutRef.current = null;
+      }
+      setIsRolling(false);
+    }
+
+    previousSectorIdRef.current = currentId;
+  }, [selectedSector]);
+
+  React.useEffect(() => {
+    if (isRolling) {
+      return;
+    }
+    if (diceValues.val1 === null || diceValues.val2 === null) {
+      return;
+    }
+    setLastOutcome(diceValues.val1 + diceValues.val2 + sumModifier);
+  }, [diceValues, sumModifier, isRolling]);
+
+  const handleAdvanceRollsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = clampNonNegativeInteger(Number(event.target.value));
+    setAdvanceRolls(nextValue);
+  };
+
+  const handleCustomModifierChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = Number(event.target.value);
+    setCustomModifier(Number.isFinite(nextValue) ? nextValue : 0);
+  };
+
+  const randomDieValue = React.useCallback(() => Math.floor(Math.random() * 3) + 1, []);
+
+  const handleRoll = React.useCallback(() => {
+    if (isRolling) {
+      return;
+    }
+
+    setIsRolling(true);
+
+    const updateRollingValues = () => {
+      setDiceValues({ val1: randomDieValue(), val2: randomDieValue() });
+    };
+
+    updateRollingValues();
+    rollIntervalRef.current = window.setInterval(updateRollingValues, ADVANCE_ROLL_TICK_INTERVAL);
+
+    rollTimeoutRef.current = window.setTimeout(() => {
+      if (rollIntervalRef.current !== null) {
+        window.clearInterval(rollIntervalRef.current);
+        rollIntervalRef.current = null;
+      }
+
+      const finalVal1 = randomDieValue();
+      const finalVal2 = randomDieValue();
+      setDiceValues({ val1: finalVal1, val2: finalVal2 });
+
+      setAdvanceRolls((prev) => prev + 1);
+
+      setIsRolling(false);
+      if (rollTimeoutRef.current !== null) {
+        window.clearTimeout(rollTimeoutRef.current);
+        rollTimeoutRef.current = null;
+      }
+    }, ADVANCE_ROLL_ANIMATION_DURATION);
+  }, [isRolling, randomDieValue]);
 
   function handleSectorSelect(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextId = event.target.value || null;
@@ -255,6 +471,109 @@ export default function EngagementTab(props: EngagementTabProps) {
                 ))}
               </div>
             </article>
+          </div>
+
+          <div className="dc-engagement-advance">
+            <h3 className="dc-engagement-advance-title">Advance Roll</h3>
+            <div className="dc-advance-grid">
+              <article className="dc-engagement-card dc-advance-panel">
+                <header>
+                  <h4>Modifiers</h4>
+                </header>
+                <div className="dc-modifiers-list">
+                  <div className="dc-modifier-row">
+                    <span className="dc-modifier-label">Injuries:</span>
+                    <span className="dc-modifier-value">{injuriesDisplay}</span>
+                  </div>
+                  <div className="dc-modifier-row">
+                    <span className="dc-modifier-label">Mobility:</span>
+                    <span className="dc-modifier-value">{mobilityDisplay}</span>
+                  </div>
+                  <div className="dc-modifier-row">
+                    <label className="dc-modifier-label" htmlFor="dc-advance-rolls">
+                      Advance Rolls made:
+                    </label>
+                    <input
+                      id="dc-advance-rolls"
+                      type="number"
+                      className="dc-input dc-modifier-input"
+                      min={0}
+                      inputMode="numeric"
+                      value={advanceRolls}
+                      onChange={handleAdvanceRollsChange}
+                    />
+                  </div>
+                  <div className="dc-modifier-row">
+                    <span className="dc-modifier-label">Fatigue:</span>
+                    <span className="dc-modifier-value">{fatigueDisplay}</span>
+                  </div>
+                  <div className="dc-modifier-row">
+                    <span className="dc-modifier-label">Weather:</span>
+                    <span className="dc-modifier-value">{weatherDisplay}</span>
+                  </div>
+                  <div className="dc-modifier-row">
+                    <label className="dc-modifier-label" htmlFor="dc-custom-modifier">
+                      Custom:
+                    </label>
+                    <input
+                      id="dc-custom-modifier"
+                      type="number"
+                      className="dc-input dc-modifier-input"
+                      value={customModifier}
+                      onChange={handleCustomModifierChange}
+                    />
+                  </div>
+                  <div className="dc-modifier-row dc-modifier-row--total">
+                    <span className="dc-modifier-total-label">Modifier:</span>
+                    <span className="dc-modifier-total-value">{sumDisplay}</span>
+                  </div>
+                </div>
+              </article>
+
+              <article className="dc-engagement-card dc-advance-panel">
+                <header>
+                  <h4>Dice Roller</h4>
+                </header>
+                <div className="dc-dice-screen">
+                  <div className="dc-dice-screen-row">
+                    <span className="dc-dice-label">VAL1</span>
+                    <span className="dc-dice-value">{diceVal1Display}</span>
+                  </div>
+                  <div className="dc-dice-screen-row">
+                    <span className="dc-dice-label">VAL2</span>
+                    <span className="dc-dice-value">{diceVal2Display}</span>
+                  </div>
+                  <div className="dc-dice-screen-row">
+                    <span className="dc-dice-label">MOD</span>
+                    <span className="dc-dice-value">{sumDisplay}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="dc-btn dc-btn--accent dc-dice-roll-btn"
+                  onClick={handleRoll}
+                  disabled={isRolling}
+                >
+                  {isRolling ? "Rolling..." : "Roll"}
+                </button>
+                <div className="dc-dice-outcome" aria-live="polite">
+                  <span className="dc-dice-outcome-label">Outcome:</span>
+                  <span className="dc-dice-outcome-value">{lastOutcomeDisplay}</span>
+                </div>
+              </article>
+
+              <article className="dc-engagement-card dc-advance-panel dc-advance-panel--result">
+                <header>
+                  <h4>Result</h4>
+                </header>
+                <div className="dc-result-placeholder">
+                  <span className="dc-result-placeholder-title">Result Pending</span>
+                  <p className="dc-result-placeholder-text">
+                    Result details will appear here in a future update.
+                  </p>
+                </div>
+              </article>
+            </div>
           </div>
         </div>
       ) : (

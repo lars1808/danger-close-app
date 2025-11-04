@@ -822,6 +822,159 @@ h1, h2, h3 {
   gap: 8px;
 }
 
+.dc-engagement-advance {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dc-engagement-advance-title {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-advance-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.dc-advance-panel {
+  gap: 16px;
+}
+
+.dc-modifiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-modifier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.dc-modifier-label {
+  color: var(--text-dim);
+}
+
+.dc-modifier-value {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.dc-modifier-input {
+  width: 72px;
+  min-width: 72px;
+  text-align: center;
+  padding-inline: 6px;
+}
+
+.dc-modifier-row--total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dc-modifier-total-label {
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-modifier-total-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+
+.dc-dice-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(15, 16, 17, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dc-dice-screen-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dc-dice-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-dice-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+
+.dc-dice-roll-btn {
+  width: 100%;
+}
+
+.dc-dice-outcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.dc-dice-outcome-label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dc-dice-outcome-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+
+.dc-advance-panel--result {
+  justify-content: space-between;
+}
+
+.dc-result-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-dim);
+}
+
+.dc-result-placeholder-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.dc-result-placeholder-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
 .dc-engagement-card header {
   display: flex;
   align-items: baseline;
