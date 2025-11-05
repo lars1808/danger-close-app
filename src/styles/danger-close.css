@@ -856,23 +856,33 @@ h1, h2, h3 {
 }
 
 .dc-engagement-squad-card {
-  padding: 16px;
+  padding: 14px 18px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(15, 18, 20, 0.88), rgba(9, 10, 12, 0.95));
+  background: linear-gradient(180deg, rgba(15, 18, 20, 0.9), rgba(9, 10, 12, 0.95));
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+}
+
+.dc-engagement-squad-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 1040px) {
+  .dc-engagement-squad-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .dc-engagement-squad-row {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .dc-engagement-squad-row--primary {
-  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
 }
 
@@ -889,11 +899,8 @@ h1, h2, h3 {
 }
 
 .dc-engagement-squad-row--positions {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
-.dc-engagement-squad-row--gear {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  align-items: start;
 }
 
 .dc-engagement-squad-name {
@@ -912,7 +919,7 @@ h1, h2, h3 {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dc-status-indicator {
@@ -969,9 +976,9 @@ h1, h2, h3 {
 }
 
 .dc-engagement-squad-status-text {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   color: var(--text-dim);
 }
 
@@ -1066,9 +1073,32 @@ h1, h2, h3 {
   background: #1b1c1e;
 }
 
-.dc-engagement-squad-resource {
+.dc-engagement-squad-main {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.dc-engagement-squad-gear-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 1040px) {
+  .dc-engagement-squad-gear-column {
+    padding-left: 0;
+    border-left: none;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+.dc-engagement-squad-resource {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
 }
 
@@ -1084,20 +1114,24 @@ h1, h2, h3 {
 .dc-engagement-position-buttons {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dc-engagement-position-btn {
-  padding: 6px 14px;
-  border-radius: 999px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px 8px;
+  border-radius: 12px;
   border: 1px solid transparent;
-  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.18);
   color: var(--text);
   transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  min-width: 92px;
 }
 
 .dc-engagement-position-btn:hover {
@@ -1105,8 +1139,21 @@ h1, h2, h3 {
 }
 
 .dc-engagement-position-btn.is-active {
-  box-shadow: 0 0 12px rgb(53 176 255 / 0.25);
+  box-shadow: 0 0 8px rgb(53 176 255 / 0.2);
   border-color: var(--focus);
+}
+
+.dc-engagement-position-btn__label {
+  font-size: 0.7rem;
+}
+
+.dc-engagement-position-btn__detail {
+  margin-top: 2px;
+  font-size: 0.64rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 
 .dc-engagement-position-btn--positive {
@@ -1127,7 +1174,7 @@ h1, h2, h3 {
 .dc-engagement-gear-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .dc-engagement-gear-value {

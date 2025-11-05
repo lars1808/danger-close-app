@@ -68,16 +68,22 @@ const STATUS_DETAILS: Record<T.Status, { label: string; tone: "ok" | "grazed" | 
 
 type PositionTone = "positive" | "caution" | "negative";
 
-const OFFENSIVE_POSITIONS: { value: T.OffensivePosition; tone: PositionTone }[] = [
-  { value: "Flanking", tone: "positive" },
-  { value: "Engaged", tone: "caution" },
-  { value: "Limited", tone: "negative" },
+type PositionOption<TPosition> = {
+  value: TPosition;
+  tone: PositionTone;
+  detail: string;
+};
+
+const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
+  { value: "Flanking", tone: "positive", detail: "+1d6 when Firing" },
+  { value: "Engaged", tone: "caution", detail: "No bonus when Firing" },
+  { value: "Limited", tone: "negative", detail: "-1d6 when Firing" },
 ];
 
-const DEFENSIVE_POSITIONS: { value: T.DefensivePosition; tone: PositionTone }[] = [
-  { value: "Fortified", tone: "positive" },
-  { value: "In Cover", tone: "caution" },
-  { value: "Flanked", tone: "negative" },
+const DEFENSIVE_POSITIONS: PositionOption<T.DefensivePosition>[] = [
+  { value: "Fortified", tone: "positive", detail: "Injury on 1" },
+  { value: "In Cover", tone: "caution", detail: "Injury on 1-2" },
+  { value: "Flanked", tone: "negative", detail: "Injury on 1-3" },
 ];
 
 type AdvanceOutcome = "Ambushed" | "Spotted" | "Advantage" | "Surprise" | "Overwhelm";
@@ -985,216 +991,226 @@ export default function EngagementTab(props: EngagementTabProps) {
 
                   return (
                     <article key={cardKey} className="dc-engagement-squad-card">
-                      <div className="dc-engagement-squad-row dc-engagement-squad-row--primary">
-                        <div className="dc-engagement-squad-name" title={displayName}>
-                          <span className="dc-engagement-squad-name-text">{displayName}</span>
-                        </div>
-                        <div
-                          className="dc-engagement-squad-status"
-                          ref={(element) => {
-                            const map = statusMenuRefs.current;
-                            if (element) {
-                              map.set(trooper.storageIndex, element);
-                            } else {
-                              map.delete(trooper.storageIndex);
-                            }
-                          }}
-                        >
-                          <button
-                            type="button"
-                            className={`dc-status-indicator dc-status-indicator--${statusDetail.tone}`}
-                            onClick={() => handleToggleStatusMenu(trooper.storageIndex)}
-                            aria-haspopup="true"
-                            aria-expanded={openStatusIndex === trooper.storageIndex}
-                            aria-label={`Status: ${statusDetail.label}`}
-                          >
-                            <span className="dc-status-indicator__icon" aria-hidden="true" />
-                          </button>
-                          <span className="dc-engagement-squad-status-text">{statusDetail.label}</span>
-                          {openStatusIndex === trooper.storageIndex ? (
-                            <div className="dc-status-menu" role="menu">
-                              {T.STATUS_ORDER.map((statusOption) => {
-                                const optionDetail = STATUS_DETAILS[statusOption];
-                                const isActive = trooper.status === statusOption;
-                                return (
-                                  <button
-                                    type="button"
-                                    key={statusOption}
-                                    className={`dc-status-menu-option dc-status-menu-option--${optionDetail.tone}${
-                                      isActive ? " is-active" : ""
-                                    }`}
-                                    onClick={() => handleStatusSelect(trooper, statusOption)}
-                                    role="menuitemradio"
-                                    aria-checked={isActive}
-                                  >
-                                    <span className="dc-status-menu-option-dot" aria-hidden="true" />
-                                    <span>{optionDetail.label}</span>
-                                  </button>
-                                );
-                              })}
+                      <div className="dc-engagement-squad-layout">
+                        <div className="dc-engagement-squad-main">
+                          <div className="dc-engagement-squad-row dc-engagement-squad-row--primary">
+                            <div className="dc-engagement-squad-name" title={displayName}>
+                              <span className="dc-engagement-squad-name-text">{displayName}</span>
                             </div>
-                          ) : null}
-                        </div>
-                        <div className="dc-engagement-squad-resource">
-                          <span className="dc-engagement-squad-resource-label">Grit</span>
-                          <div className="dc-inline-group">
-                            <button
-                              type="button"
-                              className="dc-btn dc-btn--sm"
-                              onClick={() => handleResourceBump(trooper, "grit", -1)}
-                              aria-label={`Decrease ${displayName} grit`}
+                            <div
+                              className="dc-engagement-squad-status"
+                              ref={(element) => {
+                                const map = statusMenuRefs.current;
+                                if (element) {
+                                  map.set(trooper.storageIndex, element);
+                                } else {
+                                  map.delete(trooper.storageIndex);
+                                }
+                              }}
                             >
-                              -
-                            </button>
-                            <span className="dc-valbox">{trooper.grit}</span>
-                            <button
-                              type="button"
-                              className="dc-btn dc-btn--sm"
-                              onClick={() => handleResourceBump(trooper, "grit", 1)}
-                              aria-label={`Increase ${displayName} grit`}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                        <div className="dc-engagement-squad-resource">
-                          <span className="dc-engagement-squad-resource-label">Ammo</span>
-                          <div className="dc-inline-group">
-                            <button
-                              type="button"
-                              className="dc-btn dc-btn--sm"
-                              onClick={() => handleResourceBump(trooper, "ammo", -1)}
-                              aria-label={`Decrease ${displayName} ammo`}
-                            >
-                              -
-                            </button>
-                            <span className="dc-valbox">{trooper.ammo}</span>
-                            <button
-                              type="button"
-                              className="dc-btn dc-btn--sm"
-                              onClick={() => handleResourceBump(trooper, "ammo", 1)}
-                              aria-label={`Increase ${displayName} ammo`}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="dc-engagement-squad-row dc-engagement-squad-row--positions">
-                        <div className="dc-engagement-position-group">
-                          <span className="dc-engagement-position-heading">Offensive Position</span>
-                          <div className="dc-engagement-position-buttons">
-                            {OFFENSIVE_POSITIONS.map((option) => {
-                              const isActive = trooper.offensivePosition === option.value;
-                              return (
+                              <button
+                                type="button"
+                                className={`dc-status-indicator dc-status-indicator--${statusDetail.tone}`}
+                                onClick={() => handleToggleStatusMenu(trooper.storageIndex)}
+                                aria-haspopup="true"
+                                aria-expanded={openStatusIndex === trooper.storageIndex}
+                                aria-label={`Status: ${statusDetail.label}`}
+                              >
+                                <span className="dc-status-indicator__icon" aria-hidden="true" />
+                              </button>
+                              <span className="dc-engagement-squad-status-text">{statusDetail.label}</span>
+                              {openStatusIndex === trooper.storageIndex ? (
+                                <div className="dc-status-menu" role="menu">
+                                  {T.STATUS_ORDER.map((statusOption) => {
+                                    const optionDetail = STATUS_DETAILS[statusOption];
+                                    const isActive = trooper.status === statusOption;
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={statusOption}
+                                        className={`dc-status-menu-option dc-status-menu-option--${optionDetail.tone}${
+                                          isActive ? " is-active" : ""
+                                        }`}
+                                        onClick={() => handleStatusSelect(trooper, statusOption)}
+                                        role="menuitemradio"
+                                        aria-checked={isActive}
+                                      >
+                                        <span className="dc-status-menu-option-dot" aria-hidden="true" />
+                                        <span>{optionDetail.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="dc-engagement-squad-resource">
+                              <span className="dc-engagement-squad-resource-label">Grit</span>
+                              <div className="dc-inline-group">
                                 <button
                                   type="button"
-                                  key={option.value}
-                                  className={`dc-engagement-position-btn dc-engagement-position-btn--${option.tone}${
-                                    isActive ? " is-active" : ""
-                                  }`}
-                                  onClick={() => handleOffensivePositionChange(trooper, option.value)}
-                                  aria-pressed={isActive}
+                                  className="dc-btn dc-btn--sm"
+                                  onClick={() => handleResourceBump(trooper, "grit", -1)}
+                                  aria-label={`Decrease ${displayName} grit`}
                                 >
-                                  {option.value}
+                                  -
                                 </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="dc-engagement-position-group">
-                          <span className="dc-engagement-position-heading">Defensive Position</span>
-                          <div className="dc-engagement-position-buttons">
-                            {DEFENSIVE_POSITIONS.map((option) => {
-                              const isActive = trooper.defensivePosition === option.value;
-                              return (
+                                <span className="dc-valbox">{trooper.grit}</span>
                                 <button
                                   type="button"
-                                  key={option.value}
-                                  className={`dc-engagement-position-btn dc-engagement-position-btn--${option.tone}${
-                                    isActive ? " is-active" : ""
-                                  }`}
-                                  onClick={() => handleDefensivePositionChange(trooper, option.value)}
-                                  aria-pressed={isActive}
+                                  className="dc-btn dc-btn--sm"
+                                  onClick={() => handleResourceBump(trooper, "grit", 1)}
+                                  aria-label={`Increase ${displayName} grit`}
                                 >
-                                  {option.value}
+                                  +
                                 </button>
-                              );
-                            })}
+                              </div>
+                            </div>
+                            <div className="dc-engagement-squad-resource">
+                              <span className="dc-engagement-squad-resource-label">Ammo</span>
+                              <div className="dc-inline-group">
+                                <button
+                                  type="button"
+                                  className="dc-btn dc-btn--sm"
+                                  onClick={() => handleResourceBump(trooper, "ammo", -1)}
+                                  aria-label={`Decrease ${displayName} ammo`}
+                                >
+                                  -
+                                </button>
+                                <span className="dc-valbox">{trooper.ammo}</span>
+                                <button
+                                  type="button"
+                                  className="dc-btn dc-btn--sm"
+                                  onClick={() => handleResourceBump(trooper, "ammo", 1)}
+                                  aria-label={`Increase ${displayName} ammo`}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="dc-engagement-squad-row dc-engagement-squad-row--positions">
+                            <div className="dc-engagement-position-group">
+                              <span className="dc-engagement-position-heading">Offensive Position</span>
+                              <div className="dc-engagement-position-buttons">
+                                {OFFENSIVE_POSITIONS.map((option) => {
+                                  const isActive = trooper.offensivePosition === option.value;
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={option.value}
+                                      className={`dc-engagement-position-btn dc-engagement-position-btn--${option.tone}${
+                                        isActive ? " is-active" : ""
+                                      }`}
+                                      onClick={() => handleOffensivePositionChange(trooper, option.value)}
+                                      aria-pressed={isActive}
+                                    >
+                                      <span className="dc-engagement-position-btn__label">{option.value}</span>
+                                      {isActive ? (
+                                        <span className="dc-engagement-position-btn__detail">{option.detail}</span>
+                                      ) : null}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="dc-engagement-position-group">
+                              <span className="dc-engagement-position-heading">Defensive Position</span>
+                              <div className="dc-engagement-position-buttons">
+                                {DEFENSIVE_POSITIONS.map((option) => {
+                                  const isActive = trooper.defensivePosition === option.value;
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={option.value}
+                                      className={`dc-engagement-position-btn dc-engagement-position-btn--${option.tone}${
+                                        isActive ? " is-active" : ""
+                                      }`}
+                                      onClick={() => handleDefensivePositionChange(trooper, option.value)}
+                                      aria-pressed={isActive}
+                                    >
+                                      <span className="dc-engagement-position-btn__label">{option.value}</span>
+                                      {isActive ? (
+                                        <span className="dc-engagement-position-btn__detail">{option.detail}</span>
+                                      ) : null}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="dc-engagement-squad-row dc-engagement-squad-row--gear">
-                        <div className="dc-engagement-gear-item">
-                          <span className="dc-engagement-gear-label">Weapon</span>
-                          <span className="dc-engagement-gear-value">
-                            {weapon?.name ?? "Unknown"}
-                            <span className="dc-tip dc-tip--icon">
-                              <button
-                                type="button"
-                                className="dc-tip-icon"
-                                aria-label={`View ${weapon?.name ?? "weapon"} details`}
-                                aria-describedby={weaponTooltipId}
-                              >
-                                i
-                              </button>
-                              <div id={weaponTooltipId} role="tooltip" className="dc-tip__bubble">
-                                <strong>{weapon?.name ?? "Unknown Weapon"}</strong>
-                                <p>{weapon?.info ?? "No additional weapon information available."}</p>
-                              </div>
+                        <div className="dc-engagement-squad-gear-column">
+                          <div className="dc-engagement-gear-item">
+                            <span className="dc-engagement-gear-label">Weapon</span>
+                            <span className="dc-engagement-gear-value">
+                              {weapon?.name ?? "Unknown"}
+                              <span className="dc-tip dc-tip--icon">
+                                <button
+                                  type="button"
+                                  className="dc-tip-icon"
+                                  aria-label={`View ${weapon?.name ?? "weapon"} details`}
+                                  aria-describedby={weaponTooltipId}
+                                >
+                                  i
+                                </button>
+                                <div id={weaponTooltipId} role="tooltip" className="dc-tip__bubble">
+                                  <strong>{weapon?.name ?? "Unknown Weapon"}</strong>
+                                  <p>{weapon?.info ?? "No additional weapon information available."}</p>
+                                </div>
+                              </span>
                             </span>
-                          </span>
-                        </div>
-                        <div className="dc-engagement-gear-item">
-                          <span className="dc-engagement-gear-label">Armor</span>
-                          <span className="dc-engagement-gear-value">
-                            {armor?.name ?? "Unknown"}
-                            <span className="dc-tip dc-tip--icon">
-                              <button
-                                type="button"
-                                className="dc-tip-icon"
-                                aria-label={`View ${armor?.name ?? "armor"} details`}
-                                aria-describedby={armorTooltipId}
-                              >
-                                i
-                              </button>
-                              <div id={armorTooltipId} role="tooltip" className="dc-tip__bubble">
-                                <strong>{armor?.name ?? "Unknown Armor"}</strong>
-                                <p>{armor?.info ?? "No additional armor information available."}</p>
-                              </div>
+                          </div>
+                          <div className="dc-engagement-gear-item">
+                            <span className="dc-engagement-gear-label">Armor</span>
+                            <span className="dc-engagement-gear-value">
+                              {armor?.name ?? "Unknown"}
+                              <span className="dc-tip dc-tip--icon">
+                                <button
+                                  type="button"
+                                  className="dc-tip-icon"
+                                  aria-label={`View ${armor?.name ?? "armor"} details`}
+                                  aria-describedby={armorTooltipId}
+                                >
+                                  i
+                                </button>
+                                <div id={armorTooltipId} role="tooltip" className="dc-tip__bubble">
+                                  <strong>{armor?.name ?? "Unknown Armor"}</strong>
+                                  <p>{armor?.info ?? "No additional armor information available."}</p>
+                                </div>
+                              </span>
                             </span>
-                          </span>
-                        </div>
-                        <div className="dc-engagement-gear-item">
-                          <span className="dc-engagement-gear-label">Special Gear</span>
-                          <span className="dc-engagement-gear-value">
-                            {specialGearNames}
-                            <span className="dc-tip dc-tip--icon">
-                              <button
-                                type="button"
-                                className="dc-tip-icon"
-                                aria-label={`View special gear details for ${displayName}`}
-                                aria-describedby={gearTooltipId}
-                              >
-                                i
-                              </button>
-                              <div id={gearTooltipId} role="tooltip" className="dc-tip__bubble">
-                                {specialGearItems.length > 0 ? (
-                                  specialGearItems.map((gear) => (
-                                    <div key={gear.id} className="dc-engagement-gear-tip">
-                                      <strong>{gear.name}</strong>
-                                      <p className="dc-engagement-gear-tip-description">{gear.description}</p>
-                                      <p className="dc-engagement-gear-tip-function">{gear.function}</p>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <p>No special gear assigned.</p>
-                                )}
-                              </div>
+                          </div>
+                          <div className="dc-engagement-gear-item">
+                            <span className="dc-engagement-gear-label">Special Gear</span>
+                            <span className="dc-engagement-gear-value">
+                              {specialGearNames}
+                              <span className="dc-tip dc-tip--icon">
+                                <button
+                                  type="button"
+                                  className="dc-tip-icon"
+                                  aria-label={`View special gear details for ${displayName}`}
+                                  aria-describedby={gearTooltipId}
+                                >
+                                  i
+                                </button>
+                                <div id={gearTooltipId} role="tooltip" className="dc-tip__bubble">
+                                  {specialGearItems.length > 0 ? (
+                                    specialGearItems.map((gear) => (
+                                      <div key={gear.id} className="dc-engagement-gear-tip">
+                                        <strong>{gear.name}</strong>
+                                        <p className="dc-engagement-gear-tip-description">{gear.description}</p>
+                                        <p className="dc-engagement-gear-tip-function">{gear.function}</p>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p>No special gear assigned.</p>
+                                  )}
+                                </div>
+                              </span>
                             </span>
-                          </span>
+                          </div>
                         </div>
                       </div>
                     </article>
