@@ -57,8 +57,56 @@ const WEATHER_MODIFIERS: Record<T.MissionWeather, number> = {
   Terrible: -2,
 };
 
+type AdvanceOutcome = "Ambushed" | "Spotted" | "Advantage" | "Surprise" | "Overwhelm";
+
+const ADVANCE_OUTCOME_DETAILS: Record<AdvanceOutcome, string> = {
+  Ambushed: "The Squad starts Flanked + Engaged.",
+  Spotted: "The Squad starts In Cover + Engaged.",
+  Advantage: "The Squad starts In Cover + Flanking.",
+  Surprise: "The Squad starts In Cover + Flanking + 1 Momentum.",
+  Overwhelm: "The Squad overwhelms the enemy force, and the enemy is routed.",
+};
+
 const ADVANCE_ROLL_TICK_INTERVAL = 120;
 const ADVANCE_ROLL_ANIMATION_DURATION = 900;
+
+function determineAdvanceOutcome(total: number, threat: ThreatContent): AdvanceOutcome {
+  if (threat === "TL 4") {
+    return "Ambushed";
+  }
+
+  if (threat === "TL 3") {
+    if (total >= 6) {
+      return "Advantage";
+    }
+    if (total <= 3) {
+      return "Ambushed";
+    }
+    return "Spotted";
+  }
+
+  if (threat === "TL 2") {
+    if (total >= 6) {
+      return "Overwhelm";
+    }
+    if (total <= 2) {
+      return "Ambushed";
+    }
+    return "Spotted";
+  }
+
+  // TL 1
+  if (total >= 6) {
+    return "Overwhelm";
+  }
+  if (total === 5) {
+    return "Surprise";
+  }
+  if (total === 4) {
+    return "Advantage";
+  }
+  return "Spotted";
+}
 
 function formatModifier(value: number): string {
   if (value > 0) {
@@ -97,7 +145,14 @@ export default function EngagementTab(props: EngagementTabProps) {
     val2: null,
   });
   const [isRolling, setIsRolling] = React.useState(false);
-  const [lastOutcome, setLastOutcome] = React.useState<number | null>(null);
+  const [lastRoll, setLastRoll] = React.useState<{
+    total: number;
+    outcome: AdvanceOutcome;
+    description: string;
+  } | null>(null);
+  const [isAdvanceCollapsed, setIsAdvanceCollapsed] = React.useState(false);
+
+  const advanceSectionId = React.useId();
 
   const rollIntervalRef = React.useRef<number | null>(null);
   const rollTimeoutRef = React.useRef<number | null>(null);
@@ -188,7 +243,7 @@ export default function EngagementTab(props: EngagementTabProps) {
   const sumDisplay = React.useMemo(() => formatModifier(sumModifier), [sumModifier]);
   const diceVal1Display = diceValues.val1 === null ? "-" : String(diceValues.val1);
   const diceVal2Display = diceValues.val2 === null ? "-" : String(diceValues.val2);
-  const lastOutcomeDisplay = lastOutcome === null ? "-" : String(lastOutcome);
+  const lastOutcomeDisplay = lastRoll === null ? "-" : String(lastRoll.total);
 
   React.useEffect(() => {
     return () => {
@@ -209,10 +264,9 @@ export default function EngagementTab(props: EngagementTabProps) {
     const shouldReset = !selectedSector || (previousId && currentId && previousId !== currentId);
 
     if (shouldReset) {
-      setAdvanceRolls(0);
       setCustomModifier(0);
       setDiceValues({ val1: null, val2: null });
-      setLastOutcome(null);
+      setLastRoll(null);
       if (rollIntervalRef.current !== null) {
         window.clearInterval(rollIntervalRef.current);
         rollIntervalRef.current = null;
@@ -222,20 +276,15 @@ export default function EngagementTab(props: EngagementTabProps) {
         rollTimeoutRef.current = null;
       }
       setIsRolling(false);
+      setIsAdvanceCollapsed(false);
     }
 
     previousSectorIdRef.current = currentId;
   }, [selectedSector]);
 
-  React.useEffect(() => {
-    if (isRolling) {
-      return;
-    }
-    if (diceValues.val1 === null || diceValues.val2 === null) {
-      return;
-    }
-    setLastOutcome(diceValues.val1 + diceValues.val2 + sumModifier);
-  }, [diceValues, sumModifier, isRolling]);
+  const handleToggleAdvanceCollapsed = React.useCallback(() => {
+    setIsAdvanceCollapsed((prev) => !prev);
+  }, []);
 
   const handleAdvanceRollsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextValue = clampNonNegativeInteger(Number(event.target.value));
@@ -253,8 +302,12 @@ export default function EngagementTab(props: EngagementTabProps) {
     if (isRolling) {
       return;
     }
+    if (!selectedSector) {
+      return;
+    }
 
     setIsRolling(true);
+    setLastRoll(null);
 
     const updateRollingValues = () => {
       setDiceValues({ val1: randomDieValue(), val2: randomDieValue() });
@@ -273,6 +326,24 @@ export default function EngagementTab(props: EngagementTabProps) {
       const finalVal2 = randomDieValue();
       setDiceValues({ val1: finalVal1, val2: finalVal2 });
 
+      const fatigueForRoll = computeFatigueModifier(advanceRolls);
+      const modifierForRoll =
+        injuriesModifier + mobilityModifier + fatigueForRoll + weatherModifier + customModifier;
+      const total = finalVal1 + finalVal2 + modifierForRoll;
+      const outcome = determineAdvanceOutcome(total, selectedSector.content);
+
+      setLastRoll({
+        total,
+        outcome,
+        description: ADVANCE_OUTCOME_DETAILS[outcome],
+      });
+
+      const storedSquadName = getStoredSquadName().trim();
+      const squadName = storedSquadName || "Unnamed Squad";
+      const sectorName = selectedSector.name || getSectorDisplayName(selectedSector);
+      const logMessage = `${squadName} ADVANCES >> ${sectorName}\nCover: ${selectedSector.cover} ++ Space: ${selectedSector.space} ++ Threat Level: ${selectedSector.content}\nSTATUS: ${outcome}`;
+      onAddLog(logMessage, "SYSTEM");
+
       setAdvanceRolls((prev) => prev + 1);
 
       setIsRolling(false);
@@ -281,7 +352,17 @@ export default function EngagementTab(props: EngagementTabProps) {
         rollTimeoutRef.current = null;
       }
     }, ADVANCE_ROLL_ANIMATION_DURATION);
-  }, [isRolling, randomDieValue]);
+  }, [
+    advanceRolls,
+    customModifier,
+    injuriesModifier,
+    isRolling,
+    mobilityModifier,
+    onAddLog,
+    randomDieValue,
+    selectedSector,
+    weatherModifier,
+  ]);
 
   function handleSectorSelect(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextId = event.target.value || null;
@@ -474,106 +555,147 @@ export default function EngagementTab(props: EngagementTabProps) {
           </div>
 
           <div className="dc-engagement-advance">
-            <h3 className="dc-engagement-advance-title">Advance Roll</h3>
-            <div className="dc-advance-grid">
-              <article className="dc-engagement-card dc-advance-panel">
-                <header>
-                  <h4>Modifiers</h4>
-                </header>
-                <div className="dc-modifiers-list">
-                  <div className="dc-modifier-row">
-                    <span className="dc-modifier-label">Injuries:</span>
-                    <span className="dc-modifier-value">{injuriesDisplay}</span>
-                  </div>
-                  <div className="dc-modifier-row">
-                    <span className="dc-modifier-label">Mobility:</span>
-                    <span className="dc-modifier-value">{mobilityDisplay}</span>
-                  </div>
-                  <div className="dc-modifier-row">
-                    <label className="dc-modifier-label" htmlFor="dc-advance-rolls">
-                      Advance Rolls made:
-                    </label>
-                    <input
-                      id="dc-advance-rolls"
-                      type="number"
-                      className="dc-input dc-modifier-input"
-                      min={0}
-                      inputMode="numeric"
-                      value={advanceRolls}
-                      onChange={handleAdvanceRollsChange}
-                    />
-                  </div>
-                  <div className="dc-modifier-row">
-                    <span className="dc-modifier-label">Fatigue:</span>
-                    <span className="dc-modifier-value">{fatigueDisplay}</span>
-                  </div>
-                  <div className="dc-modifier-row">
-                    <span className="dc-modifier-label">Weather:</span>
-                    <span className="dc-modifier-value">{weatherDisplay}</span>
-                  </div>
-                  <div className="dc-modifier-row">
-                    <label className="dc-modifier-label" htmlFor="dc-custom-modifier">
-                      Custom:
-                    </label>
-                    <input
-                      id="dc-custom-modifier"
-                      type="number"
-                      className="dc-input dc-modifier-input"
-                      value={customModifier}
-                      onChange={handleCustomModifierChange}
-                    />
-                  </div>
-                  <div className="dc-modifier-row dc-modifier-row--total">
-                    <span className="dc-modifier-total-label">Modifier:</span>
-                    <span className="dc-modifier-total-value">{sumDisplay}</span>
-                  </div>
-                </div>
-              </article>
-
-              <article className="dc-engagement-card dc-advance-panel">
-                <header>
-                  <h4>Dice Roller</h4>
-                </header>
-                <div className="dc-dice-screen">
-                  <div className="dc-dice-screen-row">
-                    <span className="dc-dice-label">VAL1</span>
-                    <span className="dc-dice-value">{diceVal1Display}</span>
-                  </div>
-                  <div className="dc-dice-screen-row">
-                    <span className="dc-dice-label">VAL2</span>
-                    <span className="dc-dice-value">{diceVal2Display}</span>
-                  </div>
-                  <div className="dc-dice-screen-row">
-                    <span className="dc-dice-label">MOD</span>
-                    <span className="dc-dice-value">{sumDisplay}</span>
-                  </div>
-                </div>
+            <article
+              className={`dc-engagement-card dc-advance-wrapper${
+                isAdvanceCollapsed ? " dc-advance-wrapper--collapsed" : ""
+              }`}
+            >
+              <header className="dc-advance-header">
+                <h3 className="dc-engagement-advance-title">Advance Roll</h3>
                 <button
                   type="button"
-                  className="dc-btn dc-btn--accent dc-dice-roll-btn"
-                  onClick={handleRoll}
-                  disabled={isRolling}
+                  className="dc-advance-toggle"
+                  onClick={handleToggleAdvanceCollapsed}
+                  aria-expanded={!isAdvanceCollapsed}
+                  aria-controls={advanceSectionId}
                 >
-                  {isRolling ? "Rolling..." : "Roll"}
+                  {isAdvanceCollapsed ? "Expand" : "Collapse"}
                 </button>
-                <div className="dc-dice-outcome" aria-live="polite">
-                  <span className="dc-dice-outcome-label">Outcome:</span>
-                  <span className="dc-dice-outcome-value">{lastOutcomeDisplay}</span>
-                </div>
-              </article>
+              </header>
+              <div id={advanceSectionId} className="dc-advance-body">
+                {isAdvanceCollapsed ? (
+                  lastRoll ? (
+                    <div className="dc-advance-collapsed-summary">
+                      <span className={`dc-result-outcome dc-result-outcome--${lastRoll.outcome.toLowerCase()}`}>
+                        {lastRoll.outcome}
+                      </span>
+                      <p className="dc-result-description">{lastRoll.description}</p>
+                    </div>
+                  ) : (
+                    <p className="dc-advance-collapsed-empty">No advance result yet.</p>
+                  )
+                ) : (
+                  <div className="dc-advance-grid">
+                    <section className="dc-advance-panel">
+                      <header>
+                        <h4>Modifiers</h4>
+                      </header>
+                      <div className="dc-modifiers-list">
+                        <div className="dc-modifier-row">
+                          <span className="dc-modifier-label">Injuries:</span>
+                          <span className="dc-modifier-value">{injuriesDisplay}</span>
+                        </div>
+                        <div className="dc-modifier-row">
+                          <span className="dc-modifier-label">Mobility:</span>
+                          <span className="dc-modifier-value">{mobilityDisplay}</span>
+                        </div>
+                        <div className="dc-modifier-row">
+                          <label className="dc-modifier-label" htmlFor="dc-advance-rolls">
+                            Advance Rolls made:
+                          </label>
+                          <input
+                            id="dc-advance-rolls"
+                            type="number"
+                            className="dc-input dc-modifier-input"
+                            min={0}
+                            inputMode="numeric"
+                            value={advanceRolls}
+                            onChange={handleAdvanceRollsChange}
+                          />
+                        </div>
+                        <div className="dc-modifier-row">
+                          <span className="dc-modifier-label">Fatigue:</span>
+                          <span className="dc-modifier-value">{fatigueDisplay}</span>
+                        </div>
+                        <div className="dc-modifier-row">
+                          <span className="dc-modifier-label">Weather:</span>
+                          <span className="dc-modifier-value">{weatherDisplay}</span>
+                        </div>
+                        <div className="dc-modifier-row">
+                          <label className="dc-modifier-label" htmlFor="dc-custom-modifier">
+                            Custom:
+                          </label>
+                          <input
+                            id="dc-custom-modifier"
+                            type="number"
+                            className="dc-input dc-modifier-input"
+                            value={customModifier}
+                            onChange={handleCustomModifierChange}
+                          />
+                        </div>
+                        <div className="dc-modifier-row dc-modifier-row--total">
+                          <span className="dc-modifier-total-label">Modifier:</span>
+                          <span className="dc-modifier-total-value">{sumDisplay}</span>
+                        </div>
+                      </div>
+                    </section>
 
-              <article className="dc-engagement-card dc-advance-panel dc-advance-panel--result">
-                <header>
-                  <h4>Result</h4>
-                </header>
-                <div className="dc-result-placeholder">
-                  <span className="dc-result-placeholder-title">Result Pending</span>
-                  <p className="dc-result-placeholder-text">
-                    Result details will appear here in a future update.
-                  </p>
-                </div>
-              </article>
-            </div>
+                    <section className="dc-advance-panel">
+                      <header>
+                        <h4>Dice Roller</h4>
+                      </header>
+                      <div className="dc-dice-screen">
+                        <div className="dc-dice-screen-row">
+                          <span className="dc-dice-label">Simulated d3</span>
+                          <span className="dc-dice-value">{diceVal1Display}</span>
+                        </div>
+                        <div className="dc-dice-screen-row">
+                          <span className="dc-dice-label">Simulated d3</span>
+                          <span className="dc-dice-value">{diceVal2Display}</span>
+                        </div>
+                        <div className="dc-dice-screen-row">
+                          <span className="dc-dice-label">MOD</span>
+                          <span className="dc-dice-value">{sumDisplay}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="dc-btn dc-btn--accent dc-dice-roll-btn"
+                        onClick={handleRoll}
+                        disabled={isRolling}
+                      >
+                        {isRolling ? "Rolling..." : "Roll"}
+                      </button>
+                      <div className="dc-dice-outcome" aria-live="polite">
+                        <span className="dc-dice-outcome-label">Outcome:</span>
+                        <span className="dc-dice-outcome-value">{lastOutcomeDisplay}</span>
+                      </div>
+                    </section>
+
+                    <section className="dc-advance-panel dc-advance-panel--result">
+                      <header>
+                        <h4>Result</h4>
+                      </header>
+                      {lastRoll ? (
+                        <div className="dc-result-content">
+                          <span className={`dc-result-outcome dc-result-outcome--${lastRoll.outcome.toLowerCase()}`}>
+                            {lastRoll.outcome}
+                          </span>
+                          <p className="dc-result-description">{lastRoll.description}</p>
+                        </div>
+                      ) : (
+                        <div className="dc-result-placeholder">
+                          <span className="dc-result-placeholder-title">Result Pending</span>
+                          <p className="dc-result-placeholder-text">
+                            Result details will appear here in a future update.
+                          </p>
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                )}
+              </div>
+            </article>
           </div>
         </div>
       ) : (
