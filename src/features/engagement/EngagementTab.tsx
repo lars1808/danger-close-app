@@ -988,6 +988,12 @@ export default function EngagementTab(props: EngagementTabProps) {
                   const weaponTooltipId = `${baseId}-weapon`;
                   const armorTooltipId = `${baseId}-armor`;
                   const gearTooltipId = `${baseId}-gear`;
+                  const activeOffensiveOption = OFFENSIVE_POSITIONS.find(
+                    (option) => option.value === trooper.offensivePosition,
+                  );
+                  const activeDefensiveOption = DEFENSIVE_POSITIONS.find(
+                    (option) => option.value === trooper.defensivePosition,
+                  );
 
                   return (
                     <article key={cardKey} className="dc-engagement-squad-card">
@@ -1106,13 +1112,20 @@ export default function EngagementTab(props: EngagementTabProps) {
                                       aria-pressed={isActive}
                                     >
                                       <span className="dc-engagement-position-btn__label">{option.value}</span>
-                                      {isActive ? (
-                                        <span className="dc-engagement-position-btn__detail">{option.detail}</span>
-                                      ) : null}
                                     </button>
                                   );
                                 })}
                               </div>
+                              {activeOffensiveOption ? (
+                                <div className="dc-engagement-position-detail" aria-live="polite">
+                                  <span className="dc-engagement-position-detail__label">
+                                    {activeOffensiveOption.value}:
+                                  </span>
+                                  <span className="dc-engagement-position-detail__text">
+                                    {activeOffensiveOption.detail}
+                                  </span>
+                                </div>
+                              ) : null}
                             </div>
                             <div className="dc-engagement-position-group">
                               <span className="dc-engagement-position-heading">Defensive Position</span>
@@ -1130,13 +1143,20 @@ export default function EngagementTab(props: EngagementTabProps) {
                                       aria-pressed={isActive}
                                     >
                                       <span className="dc-engagement-position-btn__label">{option.value}</span>
-                                      {isActive ? (
-                                        <span className="dc-engagement-position-btn__detail">{option.detail}</span>
-                                      ) : null}
                                     </button>
                                   );
                                 })}
                               </div>
+                              {activeDefensiveOption ? (
+                                <div className="dc-engagement-position-detail" aria-live="polite">
+                                  <span className="dc-engagement-position-detail__label">
+                                    {activeDefensiveOption.value}:
+                                  </span>
+                                  <span className="dc-engagement-position-detail__text">
+                                    {activeDefensiveOption.detail}
+                                  </span>
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </div>

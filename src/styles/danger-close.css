@@ -865,7 +865,7 @@ h1, h2, h3 {
 
 .dc-engagement-squad-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.85fr) minmax(220px, 0.85fr);
   gap: 16px;
   align-items: stretch;
 }
@@ -925,6 +925,8 @@ h1, h2, h3 {
 .dc-status-indicator {
   width: 32px;
   height: 32px;
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.18);
   display: inline-flex;
@@ -1085,6 +1087,8 @@ h1, h2, h3 {
   gap: 12px;
   padding-left: 16px;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 260px;
+  margin-left: auto;
 }
 
 @media (max-width: 1040px) {
@@ -1114,15 +1118,14 @@ h1, h2, h3 {
 .dc-engagement-position-buttons {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .dc-engagement-position-btn {
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px 8px;
+  padding: 6px 14px;
   border-radius: 12px;
   border: 1px solid transparent;
   text-transform: uppercase;
@@ -1147,13 +1150,23 @@ h1, h2, h3 {
   font-size: 0.7rem;
 }
 
-.dc-engagement-position-btn__detail {
-  margin-top: 2px;
-  font-size: 0.64rem;
+.dc-engagement-position-detail {
+  margin-top: 6px;
+  font-size: 0.68rem;
   letter-spacing: normal;
   text-transform: none;
   color: var(--text-dim);
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dc-engagement-position-detail__label {
+  font-weight: 600;
+}
+
+.dc-engagement-position-detail__text {
+  color: color-mix(in oklab, var(--text-dim) 92%, var(--text) 8%);
 }
 
 .dc-engagement-position-btn--positive {
