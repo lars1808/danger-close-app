@@ -3,6 +3,7 @@ import * as T from "../squad/types";
 import {
   getStoredSquad,
   getStoredSquadName,
+  SQUAD_STORAGE_KEY,
   SQUAD_UPDATED_EVENT,
 } from "../squad/storageKeys";
 import {
@@ -56,6 +57,28 @@ const WEATHER_MODIFIERS: Record<T.MissionWeather, number> = {
   Bad: -1,
   Terrible: -2,
 };
+
+const STATUS_DETAILS: Record<T.Status, { label: string; tone: "ok" | "grazed" | "wounded" | "bleeding" | "dead" }> = {
+  OK: { label: "OK", tone: "ok" },
+  Grazed: { label: "Grazed", tone: "grazed" },
+  Wounded: { label: "Wounded", tone: "wounded" },
+  "Bleeding Out": { label: "Bleeding Out", tone: "bleeding" },
+  Dead: { label: "Dead", tone: "dead" },
+};
+
+type PositionTone = "positive" | "caution" | "negative";
+
+const OFFENSIVE_POSITIONS: { value: T.OffensivePosition; tone: PositionTone }[] = [
+  { value: "Flanking", tone: "positive" },
+  { value: "Engaged", tone: "caution" },
+  { value: "Limited", tone: "negative" },
+];
+
+const DEFENSIVE_POSITIONS: { value: T.DefensivePosition; tone: PositionTone }[] = [
+  { value: "Fortified", tone: "positive" },
+  { value: "In Cover", tone: "caution" },
+  { value: "Flanked", tone: "negative" },
+];
 
 type AdvanceOutcome = "Ambushed" | "Spotted" | "Advantage" | "Surprise" | "Overwhelm";
 
@@ -134,10 +157,247 @@ interface EngagementTabProps {
   onAddLog: (text: string, source: T.LogSource) => void;
 }
 
+interface NormalizedTrooper {
+  storageIndex: number;
+  storedId: number | null;
+  displayId: number;
+  name: string;
+  status: T.Status;
+  grit: number;
+  ammo: number;
+  weaponId: T.WeaponId;
+  armorId: T.ArmorId;
+  specialGear: string[];
+  offensivePosition: T.OffensivePosition;
+  defensivePosition: T.DefensivePosition;
+}
+
 export default function EngagementTab(props: EngagementTabProps) {
   const { mission, currentSectorId, onCurrentSectorChange, onMissionChange, onAddLog } = props;
 
   const [storedSquad, setStoredSquad] = React.useState<Partial<T.Trooper>[]>(() => getStoredSquad());
+  const [openStatusIndex, setOpenStatusIndex] = React.useState<number | null>(null);
+  const statusMenuRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const persistSquad = React.useCallback(
+    (updater: (prev: Partial<T.Trooper>[]) => Partial<T.Trooper>[]) => {
+      setStoredSquad((prev) => {
+        const next = updater(prev);
+        try {
+          if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(next));
+            window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
+          }
+        } catch (error) {
+          // Ignore storage errors in engagement view; squad screen will remain authoritative.
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const clampZeroToThree = React.useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(3, Math.round(value)));
+  }, []);
+
+  const normalizedSquad = React.useMemo<NormalizedTrooper[]>(() => {
+    return storedSquad.map((trooper, index) => {
+      const storedId = typeof trooper?.id === "number" ? trooper.id : null;
+      const displayId = storedId ?? index + 1;
+      const name = typeof trooper?.name === "string" ? trooper.name : "";
+      const status = (trooper?.status as T.Status) ?? "OK";
+      const rawGrit = Number(trooper?.grit ?? Number.NaN);
+      const grit = Number.isFinite(rawGrit) ? clampZeroToThree(rawGrit) : 3;
+      const rawAmmo = Number(trooper?.ammo ?? Number.NaN);
+      const ammo = Number.isFinite(rawAmmo) ? clampZeroToThree(rawAmmo) : 3;
+      const weaponId = (trooper?.weaponId as T.WeaponId) ?? "assault_rifle";
+      const armorId = (trooper?.armorId as T.ArmorId) ?? "medium";
+      const specialGear = Array.isArray(trooper?.specialGear)
+        ? (trooper.specialGear as string[])
+        : [];
+      const offensivePosition = (trooper?.offensivePosition as T.OffensivePosition) ?? "Engaged";
+      const defensivePosition = (trooper?.defensivePosition as T.DefensivePosition) ?? "In Cover";
+
+      return {
+        storageIndex: index,
+        storedId,
+        displayId,
+        name,
+        status,
+        grit,
+        ammo,
+        weaponId,
+        armorId,
+        specialGear,
+        offensivePosition,
+        defensivePosition,
+      };
+    });
+  }, [clampZeroToThree, storedSquad]);
+
+  const hasSquadEntries = normalizedSquad.length > 0;
+
+  React.useEffect(() => {
+    setOpenStatusIndex(null);
+  }, [storedSquad]);
+
+  React.useEffect(() => {
+    if (openStatusIndex === null) {
+      return undefined;
+    }
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+
+    const activeIndex = openStatusIndex as number;
+
+    function handleDocumentClick(event: MouseEvent) {
+      const container = statusMenuRefs.current.get(activeIndex);
+      if (container && !container.contains(event.target as Node)) {
+        setOpenStatusIndex(null);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenStatusIndex(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openStatusIndex]);
+
+  const handleToggleStatusMenu = React.useCallback((index: number) => {
+    setOpenStatusIndex((prev) => (prev === index ? null : index));
+  }, []);
+
+  const handleStatusSelect = React.useCallback(
+    (trooper: NormalizedTrooper, nextStatus: T.Status) => {
+      if (trooper.status === nextStatus) {
+        setOpenStatusIndex(null);
+        return;
+      }
+
+      const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+
+      persistSquad((prev) =>
+        prev.map((entry, index) => {
+          if (index !== trooper.storageIndex) {
+            return entry;
+          }
+
+          const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+          const next: Partial<T.Trooper> = {
+            ...base,
+            status: nextStatus,
+          };
+          if (trooper.storedId !== null) {
+            next.id = trooper.storedId;
+          }
+          return next;
+        }),
+      );
+
+      onAddLog(`${displayName} status changed to ${nextStatus}`, "SYSTEM");
+      setOpenStatusIndex(null);
+    },
+    [onAddLog, persistSquad],
+  );
+
+  const handleResourceBump = React.useCallback(
+    (trooper: NormalizedTrooper, key: "grit" | "ammo", delta: 1 | -1) => {
+      persistSquad((prev) =>
+        prev.map((entry, index) => {
+          if (index !== trooper.storageIndex) {
+            return entry;
+          }
+
+          const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+          const existing = Number.isFinite(base[key] as number)
+            ? (base[key] as number)
+            : trooper[key];
+          const nextValue = clampZeroToThree(existing + delta);
+          if (nextValue === existing) {
+            return entry;
+          }
+
+          const next: Partial<T.Trooper> = {
+            ...base,
+            [key]: nextValue,
+          };
+          if (trooper.storedId !== null) {
+            next.id = trooper.storedId;
+          }
+          return next;
+        }),
+      );
+    },
+    [clampZeroToThree, persistSquad],
+  );
+
+  const handleOffensivePositionChange = React.useCallback(
+    (trooper: NormalizedTrooper, nextPosition: T.OffensivePosition) => {
+      if (trooper.offensivePosition === nextPosition) {
+        return;
+      }
+
+      persistSquad((prev) =>
+        prev.map((entry, index) => {
+          if (index !== trooper.storageIndex) {
+            return entry;
+          }
+
+          const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+          const next: Partial<T.Trooper> = {
+            ...base,
+            offensivePosition: nextPosition,
+          };
+          if (trooper.storedId !== null) {
+            next.id = trooper.storedId;
+          }
+          return next;
+        }),
+      );
+    },
+    [persistSquad],
+  );
+
+  const handleDefensivePositionChange = React.useCallback(
+    (trooper: NormalizedTrooper, nextPosition: T.DefensivePosition) => {
+      if (trooper.defensivePosition === nextPosition) {
+        return;
+      }
+
+      persistSquad((prev) =>
+        prev.map((entry, index) => {
+          if (index !== trooper.storageIndex) {
+            return entry;
+          }
+
+          const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+          const next: Partial<T.Trooper> = {
+            ...base,
+            defensivePosition: nextPosition,
+          };
+          if (trooper.storedId !== null) {
+            next.id = trooper.storedId;
+          }
+          return next;
+        }),
+      );
+    },
+    [persistSquad],
+  );
+
   const [advanceRolls, setAdvanceRolls] = React.useState(0);
   const [customModifier, setCustomModifier] = React.useState(0);
   const [diceValues, setDiceValues] = React.useState<{ val1: number | null; val2: number | null }>({
@@ -696,6 +956,254 @@ export default function EngagementTab(props: EngagementTabProps) {
                 )}
               </div>
             </article>
+          </div>
+
+          <div className="dc-engagement-squad">
+            <h3 className="dc-engagement-squad-title">Squad Status</h3>
+            {hasSquadEntries ? (
+              <div className="dc-engagement-squad-list">
+                {normalizedSquad.map((trooper) => {
+                  const statusDetail = STATUS_DETAILS[trooper.status];
+                  const weapon = T.WEAPON_INDEX[trooper.weaponId];
+                  const armor = T.ARMOR_INDEX[trooper.armorId];
+                  const specialGearItems = trooper.specialGear.reduce<T.SpecialGear[]>((acc, gearId) => {
+                    const gear = T.SPECIAL_GEAR_INDEX[gearId];
+                    if (gear) {
+                      acc.push(gear);
+                    }
+                    return acc;
+                  }, []);
+                  const specialGearNames = specialGearItems.length > 0
+                    ? specialGearItems.map((gear) => gear.name).join(", ")
+                    : "None";
+                  const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+                  const cardKey = trooper.storedId ?? `idx-${trooper.storageIndex}`;
+                  const baseId = `dc-engagement-squad-${trooper.displayId}-${trooper.storageIndex}`;
+                  const weaponTooltipId = `${baseId}-weapon`;
+                  const armorTooltipId = `${baseId}-armor`;
+                  const gearTooltipId = `${baseId}-gear`;
+
+                  return (
+                    <article key={cardKey} className="dc-engagement-squad-card">
+                      <div className="dc-engagement-squad-row dc-engagement-squad-row--primary">
+                        <div className="dc-engagement-squad-name" title={displayName}>
+                          <span className="dc-engagement-squad-name-text">{displayName}</span>
+                        </div>
+                        <div
+                          className="dc-engagement-squad-status"
+                          ref={(element) => {
+                            const map = statusMenuRefs.current;
+                            if (element) {
+                              map.set(trooper.storageIndex, element);
+                            } else {
+                              map.delete(trooper.storageIndex);
+                            }
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className={`dc-status-indicator dc-status-indicator--${statusDetail.tone}`}
+                            onClick={() => handleToggleStatusMenu(trooper.storageIndex)}
+                            aria-haspopup="true"
+                            aria-expanded={openStatusIndex === trooper.storageIndex}
+                            aria-label={`Status: ${statusDetail.label}`}
+                          >
+                            <span className="dc-status-indicator__icon" aria-hidden="true" />
+                          </button>
+                          <span className="dc-engagement-squad-status-text">{statusDetail.label}</span>
+                          {openStatusIndex === trooper.storageIndex ? (
+                            <div className="dc-status-menu" role="menu">
+                              {T.STATUS_ORDER.map((statusOption) => {
+                                const optionDetail = STATUS_DETAILS[statusOption];
+                                const isActive = trooper.status === statusOption;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={statusOption}
+                                    className={`dc-status-menu-option dc-status-menu-option--${optionDetail.tone}${
+                                      isActive ? " is-active" : ""
+                                    }`}
+                                    onClick={() => handleStatusSelect(trooper, statusOption)}
+                                    role="menuitemradio"
+                                    aria-checked={isActive}
+                                  >
+                                    <span className="dc-status-menu-option-dot" aria-hidden="true" />
+                                    <span>{optionDetail.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="dc-engagement-squad-resource">
+                          <span className="dc-engagement-squad-resource-label">Grit</span>
+                          <div className="dc-inline-group">
+                            <button
+                              type="button"
+                              className="dc-btn dc-btn--sm"
+                              onClick={() => handleResourceBump(trooper, "grit", -1)}
+                              aria-label={`Decrease ${displayName} grit`}
+                            >
+                              -
+                            </button>
+                            <span className="dc-valbox">{trooper.grit}</span>
+                            <button
+                              type="button"
+                              className="dc-btn dc-btn--sm"
+                              onClick={() => handleResourceBump(trooper, "grit", 1)}
+                              aria-label={`Increase ${displayName} grit`}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <div className="dc-engagement-squad-resource">
+                          <span className="dc-engagement-squad-resource-label">Ammo</span>
+                          <div className="dc-inline-group">
+                            <button
+                              type="button"
+                              className="dc-btn dc-btn--sm"
+                              onClick={() => handleResourceBump(trooper, "ammo", -1)}
+                              aria-label={`Decrease ${displayName} ammo`}
+                            >
+                              -
+                            </button>
+                            <span className="dc-valbox">{trooper.ammo}</span>
+                            <button
+                              type="button"
+                              className="dc-btn dc-btn--sm"
+                              onClick={() => handleResourceBump(trooper, "ammo", 1)}
+                              aria-label={`Increase ${displayName} ammo`}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="dc-engagement-squad-row dc-engagement-squad-row--positions">
+                        <div className="dc-engagement-position-group">
+                          <span className="dc-engagement-position-heading">Offensive Position</span>
+                          <div className="dc-engagement-position-buttons">
+                            {OFFENSIVE_POSITIONS.map((option) => {
+                              const isActive = trooper.offensivePosition === option.value;
+                              return (
+                                <button
+                                  type="button"
+                                  key={option.value}
+                                  className={`dc-engagement-position-btn dc-engagement-position-btn--${option.tone}${
+                                    isActive ? " is-active" : ""
+                                  }`}
+                                  onClick={() => handleOffensivePositionChange(trooper, option.value)}
+                                  aria-pressed={isActive}
+                                >
+                                  {option.value}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="dc-engagement-position-group">
+                          <span className="dc-engagement-position-heading">Defensive Position</span>
+                          <div className="dc-engagement-position-buttons">
+                            {DEFENSIVE_POSITIONS.map((option) => {
+                              const isActive = trooper.defensivePosition === option.value;
+                              return (
+                                <button
+                                  type="button"
+                                  key={option.value}
+                                  className={`dc-engagement-position-btn dc-engagement-position-btn--${option.tone}${
+                                    isActive ? " is-active" : ""
+                                  }`}
+                                  onClick={() => handleDefensivePositionChange(trooper, option.value)}
+                                  aria-pressed={isActive}
+                                >
+                                  {option.value}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="dc-engagement-squad-row dc-engagement-squad-row--gear">
+                        <div className="dc-engagement-gear-item">
+                          <span className="dc-engagement-gear-label">Weapon</span>
+                          <span className="dc-engagement-gear-value">
+                            {weapon?.name ?? "Unknown"}
+                            <span className="dc-tip dc-tip--icon">
+                              <button
+                                type="button"
+                                className="dc-tip-icon"
+                                aria-label={`View ${weapon?.name ?? "weapon"} details`}
+                                aria-describedby={weaponTooltipId}
+                              >
+                                i
+                              </button>
+                              <div id={weaponTooltipId} role="tooltip" className="dc-tip__bubble">
+                                <strong>{weapon?.name ?? "Unknown Weapon"}</strong>
+                                <p>{weapon?.info ?? "No additional weapon information available."}</p>
+                              </div>
+                            </span>
+                          </span>
+                        </div>
+                        <div className="dc-engagement-gear-item">
+                          <span className="dc-engagement-gear-label">Armor</span>
+                          <span className="dc-engagement-gear-value">
+                            {armor?.name ?? "Unknown"}
+                            <span className="dc-tip dc-tip--icon">
+                              <button
+                                type="button"
+                                className="dc-tip-icon"
+                                aria-label={`View ${armor?.name ?? "armor"} details`}
+                                aria-describedby={armorTooltipId}
+                              >
+                                i
+                              </button>
+                              <div id={armorTooltipId} role="tooltip" className="dc-tip__bubble">
+                                <strong>{armor?.name ?? "Unknown Armor"}</strong>
+                                <p>{armor?.info ?? "No additional armor information available."}</p>
+                              </div>
+                            </span>
+                          </span>
+                        </div>
+                        <div className="dc-engagement-gear-item">
+                          <span className="dc-engagement-gear-label">Special Gear</span>
+                          <span className="dc-engagement-gear-value">
+                            {specialGearNames}
+                            <span className="dc-tip dc-tip--icon">
+                              <button
+                                type="button"
+                                className="dc-tip-icon"
+                                aria-label={`View special gear details for ${displayName}`}
+                                aria-describedby={gearTooltipId}
+                              >
+                                i
+                              </button>
+                              <div id={gearTooltipId} role="tooltip" className="dc-tip__bubble">
+                                {specialGearItems.length > 0 ? (
+                                  specialGearItems.map((gear) => (
+                                    <div key={gear.id} className="dc-engagement-gear-tip">
+                                      <strong>{gear.name}</strong>
+                                      <p className="dc-engagement-gear-tip-description">{gear.description}</p>
+                                      <p className="dc-engagement-gear-tip-function">{gear.function}</p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p>No special gear assigned.</p>
+                                )}
+                              </div>
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="dc-engagement-squad-empty">No squad information stored.</p>
+            )}
           </div>
         </div>
       ) : (
