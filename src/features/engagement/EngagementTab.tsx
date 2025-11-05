@@ -57,8 +57,56 @@ const WEATHER_MODIFIERS: Record<T.MissionWeather, number> = {
   Terrible: -2,
 };
 
+type AdvanceOutcome = "Ambushed" | "Spotted" | "Advantage" | "Surprise" | "Overwhelm";
+
+const ADVANCE_OUTCOME_DETAILS: Record<AdvanceOutcome, string> = {
+  Ambushed: "The Squad starts Flanked + Engaged.",
+  Spotted: "The Squad starts In Cover + Engaged.",
+  Advantage: "The Squad starts In Cover + Flanking.",
+  Surprise: "The Squad starts In Cover + Flanking + 1 Momentum.",
+  Overwhelm: "The Squad overwhelms the enemy force, and the enemy is routed.",
+};
+
 const ADVANCE_ROLL_TICK_INTERVAL = 120;
 const ADVANCE_ROLL_ANIMATION_DURATION = 900;
+
+function determineAdvanceOutcome(total: number, threat: ThreatContent): AdvanceOutcome {
+  if (threat === "TL 4") {
+    return "Ambushed";
+  }
+
+  if (threat === "TL 3") {
+    if (total >= 6) {
+      return "Advantage";
+    }
+    if (total <= 3) {
+      return "Ambushed";
+    }
+    return "Spotted";
+  }
+
+  if (threat === "TL 2") {
+    if (total >= 6) {
+      return "Overwhelm";
+    }
+    if (total <= 2) {
+      return "Ambushed";
+    }
+    return "Spotted";
+  }
+
+  // TL 1
+  if (total >= 6) {
+    return "Overwhelm";
+  }
+  if (total === 5) {
+    return "Surprise";
+  }
+  if (total === 4) {
+    return "Advantage";
+  }
+  return "Spotted";
+}
 
 function formatModifier(value: number): string {
   if (value > 0) {
@@ -97,7 +145,11 @@ export default function EngagementTab(props: EngagementTabProps) {
     val2: null,
   });
   const [isRolling, setIsRolling] = React.useState(false);
-  const [lastOutcome, setLastOutcome] = React.useState<number | null>(null);
+  const [lastRoll, setLastRoll] = React.useState<{
+    total: number;
+    outcome: AdvanceOutcome;
+    description: string;
+  } | null>(null);
 
   const rollIntervalRef = React.useRef<number | null>(null);
   const rollTimeoutRef = React.useRef<number | null>(null);
@@ -188,7 +240,7 @@ export default function EngagementTab(props: EngagementTabProps) {
   const sumDisplay = React.useMemo(() => formatModifier(sumModifier), [sumModifier]);
   const diceVal1Display = diceValues.val1 === null ? "-" : String(diceValues.val1);
   const diceVal2Display = diceValues.val2 === null ? "-" : String(diceValues.val2);
-  const lastOutcomeDisplay = lastOutcome === null ? "-" : String(lastOutcome);
+  const lastOutcomeDisplay = lastRoll === null ? "-" : String(lastRoll.total);
 
   React.useEffect(() => {
     return () => {
@@ -212,7 +264,7 @@ export default function EngagementTab(props: EngagementTabProps) {
       setAdvanceRolls(0);
       setCustomModifier(0);
       setDiceValues({ val1: null, val2: null });
-      setLastOutcome(null);
+      setLastRoll(null);
       if (rollIntervalRef.current !== null) {
         window.clearInterval(rollIntervalRef.current);
         rollIntervalRef.current = null;
@@ -226,16 +278,6 @@ export default function EngagementTab(props: EngagementTabProps) {
 
     previousSectorIdRef.current = currentId;
   }, [selectedSector]);
-
-  React.useEffect(() => {
-    if (isRolling) {
-      return;
-    }
-    if (diceValues.val1 === null || diceValues.val2 === null) {
-      return;
-    }
-    setLastOutcome(diceValues.val1 + diceValues.val2 + sumModifier);
-  }, [diceValues, sumModifier, isRolling]);
 
   const handleAdvanceRollsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextValue = clampNonNegativeInteger(Number(event.target.value));
@@ -253,8 +295,12 @@ export default function EngagementTab(props: EngagementTabProps) {
     if (isRolling) {
       return;
     }
+    if (!selectedSector) {
+      return;
+    }
 
     setIsRolling(true);
+    setLastRoll(null);
 
     const updateRollingValues = () => {
       setDiceValues({ val1: randomDieValue(), val2: randomDieValue() });
@@ -273,6 +319,24 @@ export default function EngagementTab(props: EngagementTabProps) {
       const finalVal2 = randomDieValue();
       setDiceValues({ val1: finalVal1, val2: finalVal2 });
 
+      const fatigueForRoll = computeFatigueModifier(advanceRolls);
+      const modifierForRoll =
+        injuriesModifier + mobilityModifier + fatigueForRoll + weatherModifier + customModifier;
+      const total = finalVal1 + finalVal2 + modifierForRoll;
+      const outcome = determineAdvanceOutcome(total, selectedSector.content);
+
+      setLastRoll({
+        total,
+        outcome,
+        description: ADVANCE_OUTCOME_DETAILS[outcome],
+      });
+
+      const storedSquadName = getStoredSquadName().trim();
+      const squadName = storedSquadName || "Unnamed Squad";
+      const sectorName = selectedSector.name || getSectorDisplayName(selectedSector);
+      const logMessage = `${squadName} ADVANCES >> ${sectorName}\nCover: ${selectedSector.cover} ++ Space: ${selectedSector.space} ++ Threat Level: ${selectedSector.content}\nSTATUS: ${outcome}`;
+      onAddLog(logMessage, "SYSTEM");
+
       setAdvanceRolls((prev) => prev + 1);
 
       setIsRolling(false);
@@ -281,7 +345,17 @@ export default function EngagementTab(props: EngagementTabProps) {
         rollTimeoutRef.current = null;
       }
     }, ADVANCE_ROLL_ANIMATION_DURATION);
-  }, [isRolling, randomDieValue]);
+  }, [
+    advanceRolls,
+    customModifier,
+    injuriesModifier,
+    isRolling,
+    mobilityModifier,
+    onAddLog,
+    randomDieValue,
+    selectedSector,
+    weatherModifier,
+  ]);
 
   function handleSectorSelect(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextId = event.target.value || null;
@@ -536,11 +610,11 @@ export default function EngagementTab(props: EngagementTabProps) {
                 </header>
                 <div className="dc-dice-screen">
                   <div className="dc-dice-screen-row">
-                    <span className="dc-dice-label">VAL1</span>
+                    <span className="dc-dice-label">Simulated d3</span>
                     <span className="dc-dice-value">{diceVal1Display}</span>
                   </div>
                   <div className="dc-dice-screen-row">
-                    <span className="dc-dice-label">VAL2</span>
+                    <span className="dc-dice-label">Simulated d3</span>
                     <span className="dc-dice-value">{diceVal2Display}</span>
                   </div>
                   <div className="dc-dice-screen-row">
@@ -566,12 +640,21 @@ export default function EngagementTab(props: EngagementTabProps) {
                 <header>
                   <h4>Result</h4>
                 </header>
-                <div className="dc-result-placeholder">
-                  <span className="dc-result-placeholder-title">Result Pending</span>
-                  <p className="dc-result-placeholder-text">
-                    Result details will appear here in a future update.
-                  </p>
-                </div>
+                {lastRoll ? (
+                  <div className="dc-result-content">
+                    <span className={`dc-result-outcome dc-result-outcome--${lastRoll.outcome.toLowerCase()}`}>
+                      {lastRoll.outcome}
+                    </span>
+                    <p className="dc-result-description">{lastRoll.description}</p>
+                  </div>
+                ) : (
+                  <div className="dc-result-placeholder">
+                    <span className="dc-result-placeholder-title">Result Pending</span>
+                    <p className="dc-result-placeholder-text">
+                      Result details will appear here in a future update.
+                    </p>
+                  </div>
+                )}
               </article>
             </div>
           </div>
