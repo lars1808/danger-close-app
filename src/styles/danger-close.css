@@ -1096,6 +1096,45 @@ h1, h2, h3 {
   line-height: 1.45;
 }
 
+.dc-result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-result-outcome {
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.dc-result-outcome--ambushed {
+  color: var(--threat-tl4);
+}
+
+.dc-result-outcome--spotted {
+  color: var(--accent);
+}
+
+.dc-result-outcome--advantage {
+  color: var(--accent-2);
+}
+
+.dc-result-outcome--surprise {
+  color: var(--focus);
+}
+
+.dc-result-outcome--overwhelm {
+  color: var(--ok);
+}
+
+.dc-result-description {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .dc-result-placeholder {
   display: flex;
   flex-direction: column;
