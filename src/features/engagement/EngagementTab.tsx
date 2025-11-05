@@ -1014,6 +1014,7 @@ export default function EngagementTab(props: EngagementTabProps) {
                                 }
                               }}
                             >
+
                               <button
                                 type="button"
                                 className={`dc-status-indicator dc-status-indicator--${statusDetail.tone}`}
@@ -1024,7 +1025,7 @@ export default function EngagementTab(props: EngagementTabProps) {
                               >
                                 <span className="dc-status-indicator__icon" aria-hidden="true" />
                               </button>
-                              <span className="dc-engagement-squad-status-text">{statusDetail.label}</span>
+                               <span className="dc-engagement-squad-status-text">{statusDetail.label}</span>
                               {openStatusIndex === trooper.storageIndex ? (
                                 <div className="dc-status-menu" role="menu">
                                   {T.STATUS_ORDER.map((statusOption) => {

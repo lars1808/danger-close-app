@@ -865,8 +865,8 @@ h1, h2, h3 {
 
 .dc-engagement-squad-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(220px, 0.85fr);
-  gap: 16px;
+  grid-template-columns: 4.5fr 1fr;
+  gap: 8px;
   align-items: stretch;
 }
 
@@ -882,8 +882,9 @@ h1, h2, h3 {
 }
 
 .dc-engagement-squad-row--primary {
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) 180px 1fr 1fr; /* was: auto, nu 180*/
   align-items: center;
+  gap: 20px;
 }
 
 @media (max-width: 880px) {
@@ -924,8 +925,8 @@ h1, h2, h3 {
 
 .dc-status-indicator {
   width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
+  min-width: 32px;
+  flex: 0 0 32px;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.18);
@@ -1084,7 +1085,7 @@ h1, h2, h3 {
 .dc-engagement-squad-gear-column {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  /*gap: 12px; Da's pech, gap weg */
   padding-left: 16px;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   max-width: 260px;
@@ -1195,7 +1196,11 @@ h1, h2, h3 {
   align-items: center;
   gap: 8px;
   font-weight: 600;
+  font-size: 0.75rem;
   color: var(--text);
+    /* white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; */
 }
 
 .dc-tip--icon {
@@ -2364,7 +2369,7 @@ input[type="checkbox"]:hover {
 
 .dc-log-text {
   color: var(--text);
-  font-size: 0.88rem;
+  font-size: 1.2rem;
   line-height: 1.3;
   word-wrap: break-word;
 }
@@ -2455,7 +2460,7 @@ input[type="checkbox"]:hover {
 /* ==================== INLINE EDITING ==================== */
 .dc-log-text {
   color: var(--text);
-  font-size: 0.88rem;
+  font-size: 1.2rem;
   line-height: 1.3;
   word-wrap: break-word;
   cursor: pointer;
