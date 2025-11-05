@@ -7,11 +7,71 @@ import {
 } from "./storageKeys";
 
 const defaultTroopers: T.Trooper[] = [
-  { id: 1, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
-  { id: 2, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
-  { id: 3, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
-  { id: 4, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
-  { id: 5, name: "", status: "OK", grit: 3, ammo: 3, notes: "", weaponId: "assault_rifle", armorId: "medium", biography: "" },
+  {
+    id: 1,
+    name: "",
+    status: "OK",
+    grit: 3,
+    ammo: 3,
+    notes: "",
+    weaponId: "assault_rifle",
+    armorId: "medium",
+    biography: "",
+    offensivePosition: "Engaged",
+    defensivePosition: "In Cover",
+  },
+  {
+    id: 2,
+    name: "",
+    status: "OK",
+    grit: 3,
+    ammo: 3,
+    notes: "",
+    weaponId: "assault_rifle",
+    armorId: "medium",
+    biography: "",
+    offensivePosition: "Engaged",
+    defensivePosition: "In Cover",
+  },
+  {
+    id: 3,
+    name: "",
+    status: "OK",
+    grit: 3,
+    ammo: 3,
+    notes: "",
+    weaponId: "assault_rifle",
+    armorId: "medium",
+    biography: "",
+    offensivePosition: "Engaged",
+    defensivePosition: "In Cover",
+  },
+  {
+    id: 4,
+    name: "",
+    status: "OK",
+    grit: 3,
+    ammo: 3,
+    notes: "",
+    weaponId: "assault_rifle",
+    armorId: "medium",
+    biography: "",
+    offensivePosition: "Engaged",
+    defensivePosition: "In Cover",
+  },
+  {
+    id: 5,
+    name: "",
+    status: "OK",
+    grit: 3,
+    ammo: 3,
+    notes: "",
+    weaponId: "assault_rifle",
+    armorId: "medium",
+    biography: "",
+    offensivePosition: "Engaged",
+    defensivePosition: "In Cover",
+  },
 ];
 
 interface SquadTableProps {
@@ -35,6 +95,14 @@ export default function SquadTable(props: SquadTableProps) {
         armorId: (r.armorId as T.ArmorId) ?? d.armorId ?? "medium",
         biography: r.biography ?? "",
         specialGear: Array.isArray(r.specialGear) ? r.specialGear : [],
+        offensivePosition:
+          (r.offensivePosition as T.OffensivePosition | undefined) ??
+          d.offensivePosition ??
+          "Engaged",
+        defensivePosition:
+          (r.defensivePosition as T.DefensivePosition | undefined) ??
+          d.defensivePosition ??
+          "In Cover",
       };
     });
   });

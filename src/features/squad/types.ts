@@ -1,5 +1,8 @@
 export type Status = 'OK' | 'Grazed' | 'Wounded' | 'Bleeding Out' | 'Dead';
 
+export type OffensivePosition = 'Flanking' | 'Engaged' | 'Limited';
+export type DefensivePosition = 'Fortified' | 'In Cover' | 'Flanked';
+
 export type WeaponId = 'carbine' | 'assault_rifle' | 'marksman_rifle';
 export type ArmorId = 'light' | 'medium' | 'heavy';
 
@@ -35,6 +38,8 @@ export interface Trooper {
   armorId: ArmorId;
   biography?: string;
   specialGear?: string[];  // Array of special gear IDs
+  offensivePosition?: OffensivePosition;
+  defensivePosition?: DefensivePosition;
 }
 
 export const STATUS_ORDER: Status[] = ['OK', 'Grazed', 'Wounded', 'Bleeding Out', 'Dead'];
