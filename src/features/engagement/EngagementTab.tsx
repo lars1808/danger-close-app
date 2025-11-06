@@ -203,7 +203,7 @@ export default function EngagementTab(props: EngagementTabProps) {
             window.localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(next));
             window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
           }
-        } catch (error) {
+        } catch {
           // Ignore storage errors in engagement view; squad screen will remain authoritative.
         }
         return next;
@@ -255,6 +255,17 @@ export default function EngagementTab(props: EngagementTabProps) {
   }, [clampZeroToThree, storedSquad]);
 
   const hasSquadEntries = normalizedSquad.length > 0;
+
+  const threatSectors = React.useMemo(
+    () =>
+      mission.sectors.filter(
+        (sector): sector is T.MissionSector & { content: ThreatContent } =>
+          isThreatContent(sector.content),
+      ),
+    [mission.sectors],
+  );
+
+  const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
 
   const squadAlerts = React.useMemo(() => {
     if (!selectedSector) {
@@ -507,17 +518,6 @@ export default function EngagementTab(props: EngagementTabProps) {
       window.removeEventListener(SQUAD_UPDATED_EVENT, handleStoredSquadUpdate);
     };
   }, [handleStoredSquadUpdate]);
-
-  const threatSectors = React.useMemo(
-    () =>
-      mission.sectors.filter(
-        (sector): sector is T.MissionSector & { content: ThreatContent } =>
-          isThreatContent(sector.content),
-      ),
-    [mission.sectors],
-  );
-
-  const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
 
   const injuriesModifier = React.useMemo(() => {
     const woundedCount = storedSquad.reduce((count, trooper) => {
