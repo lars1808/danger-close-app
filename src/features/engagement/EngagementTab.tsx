@@ -428,10 +428,17 @@ export default function EngagementTab(props: EngagementTabProps) {
         }),
       );
 
-      onAddLog(`${displayName} status changed to ${nextStatus}`, "SYSTEM");
+      // Special KIA message format when status is Dead
+      if (nextStatus === "Dead") {
+        const sectorName = selectedSector ? getSectorDisplayName(selectedSector) : "Unknown Sector";
+        const missionName = mission.name.trim() || "Unknown Mission";
+        onAddLog(`++ ${displayName} down - status: KIA - ${sectorName} - Mission: ${missionName} ++`, "SYSTEM");
+      } else {
+        onAddLog(`${displayName} status changed to ${nextStatus}`, "SYSTEM");
+      }
       setOpenStatusIndex(null);
     },
-    [onAddLog, persistSquad],
+    [mission.name, onAddLog, persistSquad, selectedSector],
   );
 
   const handleResourceBump = React.useCallback(
