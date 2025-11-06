@@ -11,6 +11,12 @@ import {
   isThreatContent,
   MISSION_WEATHER_OPTIONS,
 } from "../mission/missionUtils";
+import {
+  MOMENTUM_DEFAULT,
+  MOMENTUM_MAX,
+  MOMENTUM_MIN,
+  MOMENTUM_VALUES,
+} from "./momentumUtils";
 import type { ThreatContent } from "../mission/missionUtils";
 
 const COVER_EFFECTS: Record<T.MissionCover, { label: string; detail: string }> = {
@@ -146,6 +152,36 @@ function determineAdvanceOutcome(total: number, threat: ThreatContent): AdvanceO
   return "Spotted";
 }
 
+function parseThreatLevel(threat: ThreatContent): number {
+  const match = threat.match(/\d+/);
+  if (!match) {
+    return 0;
+  }
+  return Number.parseInt(match[0], 10);
+}
+
+function getMomentumToneClass(value: number): string {
+  if (value <= -3) {
+    return "dc-momentum-cell--critical";
+  }
+  if (value === -2) {
+    return "dc-momentum-cell--negative";
+  }
+  if (value === -1) {
+    return "dc-momentum-cell--caution";
+  }
+  if (value === 0) {
+    return "dc-momentum-cell--neutral";
+  }
+  if (value === 1) {
+    return "dc-momentum-cell--boost";
+  }
+  if (value >= 4) {
+    return "dc-momentum-cell--peak";
+  }
+  return "dc-momentum-cell--positive";
+}
+
 function formatModifier(value: number): string {
   if (value > 0) {
     return `+${value}`;
@@ -266,6 +302,27 @@ export default function EngagementTab(props: EngagementTabProps) {
   );
 
   const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
+  const currentMomentum = selectedSector?.momentum ?? MOMENTUM_DEFAULT;
+  const victoryThreshold = React.useMemo(() => {
+    if (!selectedSector) {
+      return null;
+    }
+    return Math.min(MOMENTUM_MAX, parseThreatLevel(selectedSector.content) + 1);
+  }, [selectedSector]);
+  const momentumStatus = React.useMemo(() => {
+    if (victoryThreshold === null) {
+      return null;
+    }
+    if (currentMomentum <= MOMENTUM_MIN) {
+      return { label: "Defeat", tone: "defeat" as const };
+    }
+    if (currentMomentum >= victoryThreshold) {
+      return { label: "Victory", tone: "victory" as const };
+    }
+    return null;
+  }, [currentMomentum, victoryThreshold]);
+  const momentumDecreaseDisabled = currentMomentum <= MOMENTUM_MIN;
+  const momentumIncreaseDisabled = currentMomentum >= MOMENTUM_MAX;
 
   const squadAlerts = React.useMemo(() => {
     if (!selectedSector) {
@@ -764,6 +821,57 @@ export default function EngagementTab(props: EngagementTabProps) {
     }));
   }
 
+  const handleMomentumChange = React.useCallback(
+    (delta: 1 | -1) => {
+      if (!selectedSector) {
+        return;
+      }
+
+      const existingMomentum = selectedSector.momentum ?? MOMENTUM_DEFAULT;
+      const nextMomentum = Math.max(
+        MOMENTUM_MIN,
+        Math.min(MOMENTUM_MAX, existingMomentum + delta),
+      );
+
+      if (nextMomentum === existingMomentum) {
+        return;
+      }
+
+      const storedSquadName = getStoredSquadName().trim();
+      const squadName = storedSquadName || "Unnamed Squad";
+      const sectorName = getSectorDisplayName(selectedSector);
+      const threshold = Math.min(
+        MOMENTUM_MAX,
+        parseThreatLevel(selectedSector.content) + 1,
+      );
+
+      onMissionChange((prev) => ({
+        ...prev,
+        sectors: prev.sectors.map((sector) =>
+          sector.id === selectedSector.id
+            ? {
+                ...sector,
+                momentum: nextMomentum,
+              }
+            : sector,
+        ),
+      }));
+
+      const logMessage =
+        delta > 0
+          ? `${squadName} gained Momentum (${formatModifier(nextMomentum)}) in ${sectorName}`
+          : `${squadName} lost Momentum (${formatModifier(nextMomentum)}) in ${sectorName}`;
+      onAddLog(logMessage, "SYSTEM");
+
+      if (nextMomentum === MOMENTUM_MIN) {
+        onAddLog(`${squadName} lost engagement in ${sectorName}`, "SYSTEM");
+      } else if (nextMomentum === threshold) {
+        onAddLog(`${squadName} won engagement in ${sectorName}`, "SYSTEM");
+      }
+    },
+    [onAddLog, onMissionChange, selectedSector],
+  );
+
   return (
     <section className="dc-engagement" aria-label="Engagement Overview">
       <div className="dc-engagement-field">
@@ -1038,12 +1146,71 @@ export default function EngagementTab(props: EngagementTabProps) {
                     </section>
                   </div>
                 )}
-              </div>
-            </article>
           </div>
+        </article>
+      </div>
 
-          <div className="dc-engagement-squad">
-            <h3 className="dc-engagement-squad-title">Squad Status</h3>
+      <article className="dc-engagement-card dc-momentum-card">
+        <header className="dc-momentum-header">
+          <h3 className="dc-momentum-title">Momentum</h3>
+          {victoryThreshold !== null ? (
+            <span className="dc-momentum-target">
+              Victory at {formatModifier(victoryThreshold)}
+            </span>
+          ) : null}
+        </header>
+        <div className="dc-momentum-controls">
+          <button
+            type="button"
+            className="dc-btn dc-btn--sm dc-momentum-btn"
+            onClick={() => handleMomentumChange(-1)}
+            disabled={momentumDecreaseDisabled}
+            aria-label="Decrease engagement momentum"
+          >
+            -
+          </button>
+          <div className="dc-momentum-scale" role="group" aria-label="Engagement momentum">
+            {MOMENTUM_VALUES.map((value) => {
+              const isActive = value === currentMomentum;
+              const isTarget = victoryThreshold !== null && value === victoryThreshold;
+              const toneClass = getMomentumToneClass(value);
+              return (
+                <div
+                  key={value}
+                  className={`dc-momentum-cell ${toneClass}${
+                    isActive ? " is-active" : ""
+                  }${isTarget ? " is-target" : ""}`}
+                  aria-current={isActive ? "true" : undefined}
+                >
+                  <span className="dc-momentum-cell-value">{formatModifier(value)}</span>
+                  {isActive ? <span className="dc-momentum-cell-indicator" aria-hidden="true" /> : null}
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            className="dc-btn dc-btn--sm dc-momentum-btn"
+            onClick={() => handleMomentumChange(1)}
+            disabled={momentumIncreaseDisabled}
+            aria-label="Increase engagement momentum"
+          >
+            +
+          </button>
+          {momentumStatus ? (
+            <span
+              className={`dc-momentum-status dc-momentum-status--${momentumStatus.tone}`}
+              role="status"
+              aria-live="polite"
+            >
+              {momentumStatus.label}
+            </span>
+          ) : null}
+        </div>
+      </article>
+
+      <div className="dc-engagement-squad">
+        <h3 className="dc-engagement-squad-title">Squad Status</h3>
             {selectedSector && squadAlerts.length > 0 ? (
               <div className="dc-engagement-squad-alerts" aria-live="polite">
                 {squadAlerts.map((message) => (
