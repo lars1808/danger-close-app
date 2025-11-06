@@ -849,6 +849,47 @@ h1, h2, h3 {
   color: var(--text-dim);
 }
 
+.dc-engagement-squad-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.dc-engagement-squad-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--threat-tl4);
+  background: rgba(249, 65, 68, 0.12);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+:root.theme-terminal .dc-engagement-squad-alert {
+  background: rgba(255, 51, 0, 0.12);
+}
+
+.dc-engagement-squad-alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--threat-tl4);
+  color: var(--bg);
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dc-engagement-squad-alert-text {
+  line-height: 1.3;
+}
+
 .dc-engagement-squad-list {
   display: flex;
   flex-direction: column;
@@ -1532,6 +1573,10 @@ h1, h2, h3 {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.45;
+}
+
+.dc-advance-apply-button {
+  margin-top: 4px;
 }
 
 .dc-result-content {
