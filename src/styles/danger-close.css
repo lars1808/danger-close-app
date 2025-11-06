@@ -2866,3 +2866,29 @@ input[type="checkbox"]:hover {
   border-color: var(--accent);
   text-shadow: var(--glow);
 }
+
+/* ==================== RESET BUTTON ==================== */
+.dc-reset-btn {
+  display: block;
+  margin: 8px auto;
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  border: 1px solid var(--border);
+  background-color: #1b1d1f;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.dc-reset-btn:hover {
+  border-color: #e74c3c;
+  color: #e74c3c;
+  background-color: #212426;
+  transform: rotate(180deg);
+}
+
+.dc-reset-btn:active {
+  transform: scale(0.95) rotate(180deg);
+}
