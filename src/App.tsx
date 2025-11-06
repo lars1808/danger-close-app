@@ -115,6 +115,13 @@ export default function App() {
     setActiveTab("engagement");
   }, []);
 
+  const handleReset = useCallback(() => {
+    if (window.confirm("Reset all app data? This will clear everything and reload the page.")) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  }, []);
+
   return (
     <main>
       <div className="dc-container">
@@ -135,6 +142,15 @@ export default function App() {
             TERMINAL
           </button>
         </div>
+
+        {/* RESET BUTTON */}
+        <button
+          className="dc-reset-btn"
+          onClick={handleReset}
+          title="Reset all app data"
+        >
+          ♻
+        </button>
 
         <h1 className="dc-title">Danger Close – Squad Tracker v0</h1>
         <div className="dc-subtle-rule" />
