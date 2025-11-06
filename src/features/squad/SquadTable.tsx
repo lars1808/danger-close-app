@@ -5,6 +5,7 @@ import {
   SQUAD_NAME_STORAGE_KEY,
   SQUAD_UPDATED_EVENT,
 } from "./storageKeys";
+import { getSectorDisplayName } from "../mission/missionUtils";
 
 const defaultTroopers: T.Trooper[] = [
   {
@@ -76,9 +77,11 @@ const defaultTroopers: T.Trooper[] = [
 
 interface SquadTableProps {
   onAddLog: (text: string, source: "USER" | "SYSTEM") => void;
+  mission: T.Mission;
+  currentSectorId: string | null;
 }
 export default function SquadTable(props: SquadTableProps) {
-  const { onAddLog } = props;
+  const { onAddLog, mission, currentSectorId } = props;
   const [troopers, setTroopers] = useState<T.Trooper[]>(() => {
     const saved = localStorage.getItem(SQUAD_STORAGE_KEY);
     const base = saved ? (JSON.parse(saved) as Partial<T.Trooper>[]) : defaultTroopers;
@@ -235,7 +238,16 @@ export default function SquadTable(props: SquadTableProps) {
     onChange={(e) => {
       const newStatus = e.target.value as T.Status;
       update(t.id, "status", newStatus);
-      onAddLog(`${t.name} status changed to ${newStatus}`, "SYSTEM");
+
+      // Special KIA message format when status is Dead
+      if (newStatus === "Dead") {
+        const currentSector = mission.sectors.find((s) => s.id === currentSectorId);
+        const sectorName = currentSector ? getSectorDisplayName(currentSector) : "Unknown Sector";
+        const missionName = mission.name.trim() || "Unknown Mission";
+        onAddLog(`++ ${t.name} down - status: KIA - ${sectorName} - Mission: ${missionName} ++`, "SYSTEM");
+      } else {
+        onAddLog(`${t.name} status changed to ${newStatus}`, "SYSTEM");
+      }
     }}
   >
     <option value="OK" className="dc-status-option--ok">OK</option>

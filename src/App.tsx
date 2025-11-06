@@ -186,7 +186,13 @@ export default function App() {
         </nav>
 
         {/* TAB CONTENT */}
-        {activeTab === "squad" && <SquadTable onAddLog={addLogEntry} />}
+        {activeTab === "squad" && (
+          <SquadTable
+            onAddLog={addLogEntry}
+            mission={mission}
+            currentSectorId={currentSectorId}
+          />
+        )}
         {activeTab === "mission" && (
           <MissionSetup
             mission={mission}
