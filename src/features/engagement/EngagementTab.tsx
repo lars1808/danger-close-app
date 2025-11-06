@@ -96,6 +96,15 @@ const ADVANCE_OUTCOME_DETAILS: Record<AdvanceOutcome, string> = {
   Overwhelm: "The Squad overwhelms the enemy force, and the enemy is routed.",
 };
 
+const ADVANCE_OUTCOME_POSITIONS: Partial<
+  Record<AdvanceOutcome, { offensive: T.OffensivePosition; defensive: T.DefensivePosition }>
+> = {
+  Ambushed: { offensive: "Engaged", defensive: "Flanked" },
+  Spotted: { offensive: "Engaged", defensive: "In Cover" },
+  Advantage: { offensive: "Flanking", defensive: "In Cover" },
+  Surprise: { offensive: "Flanking", defensive: "In Cover" },
+};
+
 const ADVANCE_ROLL_TICK_INTERVAL = 120;
 const ADVANCE_ROLL_ANIMATION_DURATION = 900;
 
@@ -194,7 +203,7 @@ export default function EngagementTab(props: EngagementTabProps) {
             window.localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(next));
             window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
           }
-        } catch (error) {
+        } catch {
           // Ignore storage errors in engagement view; squad screen will remain authoritative.
         }
         return next;
@@ -246,6 +255,55 @@ export default function EngagementTab(props: EngagementTabProps) {
   }, [clampZeroToThree, storedSquad]);
 
   const hasSquadEntries = normalizedSquad.length > 0;
+
+  const threatSectors = React.useMemo(
+    () =>
+      mission.sectors.filter(
+        (sector): sector is T.MissionSector & { content: ThreatContent } =>
+          isThreatContent(sector.content),
+      ),
+    [mission.sectors],
+  );
+
+  const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
+
+  const squadAlerts = React.useMemo(() => {
+    if (!selectedSector) {
+      return [] as string[];
+    }
+
+    let fortifiedCount = 0;
+    let flankingCount = 0;
+
+    normalizedSquad.forEach((trooper) => {
+      if (trooper.defensivePosition === "Fortified") {
+        fortifiedCount += 1;
+      }
+      if (trooper.offensivePosition === "Flanking") {
+        flankingCount += 1;
+      }
+    });
+
+    const messages: string[] = [];
+
+    if (selectedSector.cover === "Exposed" && fortifiedCount > 0) {
+      messages.push("Exposed - No Troopers can be Fortified.");
+    }
+
+    if (selectedSector.cover === "Normal" && fortifiedCount > 2) {
+      messages.push("Normal Cover - No more than 2 Troopers can be Fortified.");
+    }
+
+    if (selectedSector.space === "Tight" && flankingCount > 0) {
+      messages.push("Tight Quarters - No Troopers can be Flanking.");
+    }
+
+    if (selectedSector.space === "Transitional" && flankingCount > 2) {
+      messages.push("Transitional Space - No more than 2 Troopers can be Flanking.");
+    }
+
+    return messages;
+  }, [normalizedSquad, selectedSector]);
 
   React.useEffect(() => {
     setOpenStatusIndex(null);
@@ -418,6 +476,28 @@ export default function EngagementTab(props: EngagementTabProps) {
   } | null>(null);
   const [isAdvanceCollapsed, setIsAdvanceCollapsed] = React.useState(false);
 
+  const handleApplyAdvanceOutcome = React.useCallback(() => {
+    if (!lastRoll) {
+      return;
+    }
+
+    const positions = ADVANCE_OUTCOME_POSITIONS[lastRoll.outcome];
+    if (!positions) {
+      return;
+    }
+
+    persistSquad((prev) =>
+      prev.map((entry) => {
+        const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+        return {
+          ...base,
+          offensivePosition: positions.offensive,
+          defensivePosition: positions.defensive,
+        };
+      }),
+    );
+  }, [lastRoll, persistSquad]);
+
   const advanceSectionId = React.useId();
 
   const rollIntervalRef = React.useRef<number | null>(null);
@@ -438,17 +518,6 @@ export default function EngagementTab(props: EngagementTabProps) {
       window.removeEventListener(SQUAD_UPDATED_EVENT, handleStoredSquadUpdate);
     };
   }, [handleStoredSquadUpdate]);
-
-  const threatSectors = React.useMemo(
-    () =>
-      mission.sectors.filter(
-        (sector): sector is T.MissionSector & { content: ThreatContent } =>
-          isThreatContent(sector.content),
-      ),
-    [mission.sectors],
-  );
-
-  const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
 
   const injuriesModifier = React.useMemo(() => {
     const woundedCount = storedSquad.reduce((count, trooper) => {
@@ -948,6 +1017,15 @@ export default function EngagementTab(props: EngagementTabProps) {
                             {lastRoll.outcome}
                           </span>
                           <p className="dc-result-description">{lastRoll.description}</p>
+                          {ADVANCE_OUTCOME_POSITIONS[lastRoll.outcome] ? (
+                            <button
+                              type="button"
+                              className="dc-btn dc-btn--sm dc-advance-apply-button"
+                              onClick={handleApplyAdvanceOutcome}
+                            >
+                              Apply
+                            </button>
+                          ) : null}
                         </div>
                       ) : (
                         <div className="dc-result-placeholder">
@@ -966,6 +1044,18 @@ export default function EngagementTab(props: EngagementTabProps) {
 
           <div className="dc-engagement-squad">
             <h3 className="dc-engagement-squad-title">Squad Status</h3>
+            {selectedSector && squadAlerts.length > 0 ? (
+              <div className="dc-engagement-squad-alerts" aria-live="polite">
+                {squadAlerts.map((message) => (
+                  <div key={message} className="dc-engagement-squad-alert" role="alert">
+                    <span className="dc-engagement-squad-alert-icon" aria-hidden="true">
+                      !
+                    </span>
+                    <span className="dc-engagement-squad-alert-text">{message}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {hasSquadEntries ? (
               <div className="dc-engagement-squad-list">
                 {normalizedSquad.map((trooper) => {
