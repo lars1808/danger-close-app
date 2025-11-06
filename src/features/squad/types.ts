@@ -222,6 +222,7 @@ export interface MissionSector {
   space: MissionSpace;
   content: MissionContent;
   weather: MissionWeather;
+  momentum: number;
 }
 
 export interface Mission {

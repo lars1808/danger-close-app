@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as T from "../squad/types";
 import { getStoredSquadName } from "../squad/storageKeys";
-import { 
-  getSectorDisplayName, 
-  isThreatContent, 
-  MISSION_WEATHER_OPTIONS 
+import {
+  getSectorDisplayName,
+  isThreatContent,
+  MISSION_WEATHER_OPTIONS
 } from "./missionUtils";
+import { clampMomentum, MOMENTUM_DEFAULT } from "../engagement/momentumUtils";
 
 export const MISSION_STORAGE_KEY = "danger-close-mission";
 
@@ -135,6 +136,7 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       space: "Transitional",
       content: "Nothing",
       weather: "Normal",
+      momentum: MOMENTUM_DEFAULT,
     };
   }
 
@@ -152,6 +154,7 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
     weather: MISSION_WEATHER_OPTIONS.includes(rawSector.weather as T.MissionWeather)
       ? (rawSector.weather as T.MissionWeather)
       : "Normal",
+    momentum: clampMomentum(rawSector.momentum),
   };
 }
 
@@ -353,6 +356,7 @@ export default function MissionSetup(props: MissionSetupProps) {
           space: "Transitional",
           content: "Nothing",
           weather: "Normal",
+          momentum: MOMENTUM_DEFAULT,
         },
       ],
     }));
