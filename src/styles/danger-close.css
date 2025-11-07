@@ -2185,6 +2185,15 @@ h1, h2, h3 {
   width: 160px;
 }
 
+.dc-col-actions {
+  width: 140px;
+  text-align: right;
+}
+
+.dc-td-actions {
+  text-align: right;
+}
+
 .dc-th--center {
   text-align: center !important;
 }
@@ -2196,6 +2205,95 @@ h1, h2, h3 {
   justify-content: center;
   gap: 8px;
   flex-wrap: nowrap;
+}
+
+/* ==================== TROOPER ROW STATE ==================== */
+.dc-trooper-row td {
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dc-trooper-row--active td {
+  background: rgba(221, 161, 94, 0.08);
+}
+
+.dc-trooper-row--active:hover td {
+  background: rgba(221, 161, 94, 0.12);
+}
+
+.dc-trooper-row--dragging {
+  opacity: 0.55;
+}
+
+.dc-trooper-row--dragover td {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* ==================== ROW ACTION BUTTONS ==================== */
+.dc-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.dc-row-action-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #1b1d1f;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.dc-row-action-btn:hover {
+  background: #212426;
+  border-color: #3a3f44;
+}
+
+.dc-row-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dc-row-action-btn--danger {
+  color: #f26d6d;
+  border-color: #5a2b2b;
+}
+
+.dc-row-action-btn--danger:hover {
+  background: #2a1b1b;
+  border-color: #7a3535;
+}
+
+/* ==================== RESERVE TOGGLE ==================== */
+.dc-reserve-toggle-row td {
+  padding: 12px;
+  text-align: center;
+  background: #101112;
+}
+
+.dc-reserve-toggle {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 6px 18px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.dc-reserve-toggle:hover {
+  background: rgba(221, 161, 94, 0.08);
+  border-color: var(--accent);
 }
 
 .dc-valbox {
