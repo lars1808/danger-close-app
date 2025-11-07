@@ -240,6 +240,7 @@ export interface Mission {
   id: string;
   name: string;
   objective: string;
+  briefing: string;
   difficulty: Difficulty;
   airspace: Airspace;
   status: 'planning' | 'active' | 'complete';
