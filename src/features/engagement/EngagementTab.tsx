@@ -3,6 +3,7 @@ import * as T from "../squad/types";
 import {
   getStoredSquad,
   getStoredSquadName,
+  getStoredArmory,
   SQUAD_STORAGE_KEY,
   SQUAD_UPDATED_EVENT,
 } from "../squad/storageKeys";
@@ -227,6 +228,7 @@ export default function EngagementTab(props: EngagementTabProps) {
   const { mission, currentSectorId, onCurrentSectorChange, onMissionChange, onAddLog } = props;
 
   const [storedSquad, setStoredSquad] = React.useState<Partial<T.Trooper>[]>(() => getStoredSquad());
+  const [storedArmory, setStoredArmory] = React.useState<T.SquadArmoryState>(() => getStoredArmory());
   const [openStatusIndex, setOpenStatusIndex] = React.useState<number | null>(null);
   const statusMenuRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -289,6 +291,14 @@ export default function EngagementTab(props: EngagementTabProps) {
       };
     });
   }, [clampZeroToThree, storedSquad]);
+
+  const armoryIndex = React.useMemo(() => {
+    const map = new Map<string, T.SquadInventoryItem>();
+    storedArmory.items.forEach((item) => {
+      map.set(item.id, item);
+    });
+    return map;
+  }, [storedArmory.items]);
 
   const deployedSquad = React.useMemo(() => normalizedSquad.slice(0, 5), [normalizedSquad]);
 
@@ -572,6 +582,7 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const handleStoredSquadUpdate = React.useCallback(() => {
     setStoredSquad(getStoredSquad());
+    setStoredArmory(getStoredArmory());
   }, []);
 
   React.useEffect(() => {
@@ -1238,10 +1249,18 @@ export default function EngagementTab(props: EngagementTabProps) {
                   const statusDetail = STATUS_DETAILS[trooper.status];
                   const weapon = T.WEAPON_INDEX[trooper.weaponId];
                   const armor = T.ARMOR_INDEX[trooper.armorId];
-                  const specialGearItems = trooper.specialGear.reduce<T.SpecialGear[]>((acc, gearId) => {
-                    const gear = T.SPECIAL_GEAR_INDEX[gearId];
-                    if (gear) {
-                      acc.push(gear);
+                  const specialGearItems = trooper.specialGear.reduce<T.SpecialGear[]>((acc, itemId) => {
+                    const inventoryItem = armoryIndex.get(itemId);
+                    if (inventoryItem) {
+                      const gear = T.SPECIAL_GEAR_INDEX[inventoryItem.gearId];
+                      if (gear) {
+                        acc.push(gear);
+                      }
+                      return acc;
+                    }
+                    const legacyGear = T.SPECIAL_GEAR_INDEX[itemId];
+                    if (legacyGear) {
+                      acc.push(legacyGear);
                     }
                     return acc;
                   }, []);

@@ -27,6 +27,17 @@ export interface SpecialGear {
   function: string;
 }
 
+export interface SquadInventoryItem {
+  id: string;
+  gearId: string;
+  assignedTrooperId: number | null;
+}
+
+export interface SquadArmoryState {
+  requisition: number;
+  items: SquadInventoryItem[];
+}
+
 export interface Trooper {
   id: number;
   name: string;
@@ -37,7 +48,7 @@ export interface Trooper {
   weaponId: WeaponId;
   armorId: ArmorId;
   biography?: string;
-  specialGear?: string[];  // Array of special gear IDs
+  specialGear?: string[];  // Array of special gear inventory IDs
   offensivePosition?: OffensivePosition;
   defensivePosition?: DefensivePosition;
 }
