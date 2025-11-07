@@ -290,7 +290,9 @@ export default function EngagementTab(props: EngagementTabProps) {
     });
   }, [clampZeroToThree, storedSquad]);
 
-  const hasSquadEntries = normalizedSquad.length > 0;
+  const deployedSquad = React.useMemo(() => normalizedSquad.slice(0, 5), [normalizedSquad]);
+
+  const hasSquadEntries = deployedSquad.length > 0;
 
   const threatSectors = React.useMemo(
     () =>
@@ -332,7 +334,7 @@ export default function EngagementTab(props: EngagementTabProps) {
     let fortifiedCount = 0;
     let flankingCount = 0;
 
-    normalizedSquad.forEach((trooper) => {
+    deployedSquad.forEach((trooper) => {
       if (trooper.defensivePosition === "Fortified") {
         fortifiedCount += 1;
       }
@@ -360,7 +362,7 @@ export default function EngagementTab(props: EngagementTabProps) {
     }
 
     return messages;
-  }, [normalizedSquad, selectedSector]);
+  }, [deployedSquad, selectedSector]);
 
   React.useEffect(() => {
     setOpenStatusIndex(null);
@@ -1232,7 +1234,7 @@ export default function EngagementTab(props: EngagementTabProps) {
             ) : null}
             {hasSquadEntries ? (
               <div className="dc-engagement-squad-list">
-                {normalizedSquad.map((trooper) => {
+                {deployedSquad.map((trooper) => {
                   const statusDetail = STATUS_DETAILS[trooper.status];
                   const weapon = T.WEAPON_INDEX[trooper.weaponId];
                   const armor = T.ARMOR_INDEX[trooper.armorId];
