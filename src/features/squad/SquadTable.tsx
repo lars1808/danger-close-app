@@ -7,9 +7,9 @@ import {
 } from "./storageKeys";
 import { getSectorDisplayName } from "../mission/missionUtils";
 
-const defaultTroopers: T.Trooper[] = [
-  {
-    id: 1,
+function createTrooper(id: number): T.Trooper {
+  return {
+    id,
     name: "",
     status: "OK",
     grit: 3,
@@ -18,62 +18,15 @@ const defaultTroopers: T.Trooper[] = [
     weaponId: "assault_rifle",
     armorId: "medium",
     biography: "",
+    specialGear: [],
     offensivePosition: "Engaged",
     defensivePosition: "In Cover",
-  },
-  {
-    id: 2,
-    name: "",
-    status: "OK",
-    grit: 3,
-    ammo: 3,
-    notes: "",
-    weaponId: "assault_rifle",
-    armorId: "medium",
-    biography: "",
-    offensivePosition: "Engaged",
-    defensivePosition: "In Cover",
-  },
-  {
-    id: 3,
-    name: "",
-    status: "OK",
-    grit: 3,
-    ammo: 3,
-    notes: "",
-    weaponId: "assault_rifle",
-    armorId: "medium",
-    biography: "",
-    offensivePosition: "Engaged",
-    defensivePosition: "In Cover",
-  },
-  {
-    id: 4,
-    name: "",
-    status: "OK",
-    grit: 3,
-    ammo: 3,
-    notes: "",
-    weaponId: "assault_rifle",
-    armorId: "medium",
-    biography: "",
-    offensivePosition: "Engaged",
-    defensivePosition: "In Cover",
-  },
-  {
-    id: 5,
-    name: "",
-    status: "OK",
-    grit: 3,
-    ammo: 3,
-    notes: "",
-    weaponId: "assault_rifle",
-    armorId: "medium",
-    biography: "",
-    offensivePosition: "Engaged",
-    defensivePosition: "In Cover",
-  },
-];
+  };
+}
+
+const defaultTroopers: T.Trooper[] = Array.from({ length: 5 }, (_, index) =>
+  createTrooper(index + 1),
+);
 
 interface SquadTableProps {
   onAddLog: (text: string, source: "USER" | "SYSTEM") => void;
@@ -111,6 +64,9 @@ export default function SquadTable(props: SquadTableProps) {
   });
 
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [showAllTroopers, setShowAllTroopers] = useState(false);
+  const [draggedTrooperId, setDraggedTrooperId] = useState<number | null>(null);
+  const [dragOverTrooperId, setDragOverTrooperId] = useState<number | null>(null);
   const [squadName, setSquadName] = useState<string>(() => localStorage.getItem(SQUAD_NAME_STORAGE_KEY) ?? "");
 
   useEffect(() => {
@@ -141,6 +97,8 @@ export default function SquadTable(props: SquadTableProps) {
       localStorage.removeItem(SQUAD_STORAGE_KEY);
       setSquadName("");
       localStorage.removeItem(SQUAD_NAME_STORAGE_KEY);
+      setShowAllTroopers(false);
+      setExpandedIds(new Set());
     }
   }
 
@@ -156,6 +114,98 @@ export default function SquadTable(props: SquadTableProps) {
     });
   }
 
+  function addTrooper() {
+    const nextId = troopers.reduce((max, trooper) => Math.max(max, trooper.id), 0) + 1;
+    setTroopers((prev) => [...prev, createTrooper(nextId)]);
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.add(nextId);
+      return next;
+    });
+    setShowAllTroopers(true);
+  }
+
+  function removeTrooper(id: number) {
+    const trooper = troopers.find((t) => t.id === id);
+    const trooperIndex = trooper ? troopers.indexOf(trooper) : -1;
+    const displayName = trooper?.name?.trim() || (trooperIndex >= 0 ? `Trooper ${trooperIndex + 1}` : "this trooper");
+    if (!confirm(`Are you sure you want to delete ${displayName}?`)) {
+      return;
+    }
+
+    const nextTroopers = troopers.filter((t) => t.id !== id);
+    setTroopers(nextTroopers);
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    if (nextTroopers.length <= 5) {
+      setShowAllTroopers(false);
+    }
+  }
+
+  function moveTrooper(id: number, direction: -1 | 1) {
+    setTroopers((prev) => {
+      const index = prev.findIndex((t) => t.id === id);
+      if (index === -1) {
+        return prev;
+      }
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= prev.length) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function reorderTroopers(sourceId: number, targetId: number) {
+    if (sourceId === targetId) {
+      return;
+    }
+    setTroopers((prev) => {
+      const sourceIndex = prev.findIndex((t) => t.id === sourceId);
+      const targetIndex = prev.findIndex((t) => t.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function handleDragStart(event: React.DragEvent<HTMLTableRowElement>, id: number) {
+    event.dataTransfer.effectAllowed = "move";
+    setDraggedTrooperId(id);
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLTableRowElement>, id: number) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dragOverTrooperId !== id) {
+      setDragOverTrooperId(id);
+    }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLTableRowElement>, id: number) {
+    event.preventDefault();
+    if (draggedTrooperId !== null) {
+      reorderTroopers(draggedTrooperId, id);
+    }
+    setDraggedTrooperId(null);
+    setDragOverTrooperId(null);
+  }
+
+  function handleDragEnd() {
+    setDraggedTrooperId(null);
+    setDragOverTrooperId(null);
+  }
+
   function getGearSummary(trooper: T.Trooper): string {
     const weapon = T.WEAPON_INDEX[trooper.weaponId]?.name ?? "Unknown";
     const armor = T.ARMOR_INDEX[trooper.armorId]?.name ?? "Unknown";
@@ -164,6 +214,11 @@ export default function SquadTable(props: SquadTableProps) {
       : "";
     return special ? `${weapon}, ${armor}, ${special}` : `${weapon}, ${armor}`;
   }
+
+  const primaryTroopers = troopers.slice(0, 5);
+  const reserveTroopers = troopers.slice(5);
+  const visibleTroopers = showAllTroopers ? troopers : primaryTroopers;
+  const reserveCount = reserveTroopers.length;
 
   return (
     <div>
@@ -181,7 +236,11 @@ export default function SquadTable(props: SquadTableProps) {
       </div>
 
       <div className="dc-toolbar">
-        <button onClick={resetSquad} className="dc-btn dc-btn--accent">Reset Squad</button>
+        <button type="button" onClick={resetSquad} className="dc-btn dc-btn--accent">Reset Squad</button>
+        <button type="button" onClick={addTrooper} className="dc-btn">
+          <span aria-hidden="true">＋</span>
+          Add Trooper
+        </button>
       </div>
 
       <div className="dc-table-wrap">
@@ -194,25 +253,43 @@ export default function SquadTable(props: SquadTableProps) {
               <th className="dc-th--center">Grit</th>
               <th className="dc-th--center">Ammo</th>
               <th>Notes</th>
+              <th className="dc-col-actions">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {troopers.map((t) => {
+            {visibleTroopers.map((t) => {
+              const trooperIndex = troopers.findIndex((trooper) => trooper.id === t.id);
+              const isPrimary = trooperIndex > -1 && trooperIndex < 5;
               const isExpanded = expandedIds.has(t.id);
               const gearSummary = getGearSummary(t);
+              const isDragging = draggedTrooperId === t.id;
+              const isDragOver = dragOverTrooperId === t.id && draggedTrooperId !== null && draggedTrooperId !== t.id;
+              const displayIndex = trooperIndex + 1;
+              const displayName = t.name.trim() || (trooperIndex >= 0 ? `Trooper ${displayIndex}` : "Trooper");
 
               return (
                 <React.Fragment key={t.id}>
                   {/* MAIN ROW */}
-                  <tr>
+                  <tr
+                    className={`dc-trooper-row ${isPrimary ? "dc-trooper-row--active" : "dc-trooper-row--reserve"} ${
+                      isDragging ? "dc-trooper-row--dragging" : ""
+                    } ${isDragOver ? "dc-trooper-row--dragover" : ""}`.trim()}
+                    draggable
+                    onDragStart={(event) => handleDragStart(event, t.id)}
+                    onDragOver={(event) => handleDragOver(event, t.id)}
+                    onDrop={(event) => handleDrop(event, t.id)}
+                    onDragEnd={handleDragEnd}
+                    aria-label={`Trooper ${displayIndex}`}
+                  >
                     {/* Expand button */}
                     <td className="dc-col-expand">
                       <button
+                        type="button"
                         onClick={() => toggleExpanded(t.id)}
                         className={`dc-expand-btn ${isExpanded ? "expanded" : ""}`}
                         aria-expanded={isExpanded}
-                        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${t.name}`}
+                        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${displayName}`}
                       >
                         ▼
                       </button>
@@ -261,18 +338,18 @@ export default function SquadTable(props: SquadTableProps) {
                     {/* Grit */}
                     <td className="dc-td--num">
                       <div className="dc-inline-group">
-                        <button onClick={() => bump(t.id, "grit", -1)} className="dc-btn dc-btn--sm">-</button>
+                        <button type="button" onClick={() => bump(t.id, "grit", -1)} className="dc-btn dc-btn--sm">-</button>
                         <span className="dc-valbox">{t.grit}</span>
-                        <button onClick={() => bump(t.id, "grit", +1)} className="dc-btn dc-btn--sm">+</button>
+                        <button type="button" onClick={() => bump(t.id, "grit", +1)} className="dc-btn dc-btn--sm">+</button>
                       </div>
                     </td>
 
                     {/* Ammo */}
                     <td className="dc-td--num">
                       <div className="dc-inline-group">
-                        <button onClick={() => bump(t.id, "ammo", -1)} className="dc-btn dc-btn--sm">-</button>
+                        <button type="button" onClick={() => bump(t.id, "ammo", -1)} className="dc-btn dc-btn--sm">-</button>
                         <span className="dc-valbox">{t.ammo}</span>
-                        <button onClick={() => bump(t.id, "ammo", +1)} className="dc-btn dc-btn--sm">+</button>
+                        <button type="button" onClick={() => bump(t.id, "ammo", +1)} className="dc-btn dc-btn--sm">+</button>
                       </div>
                     </td>
 
@@ -285,12 +362,42 @@ export default function SquadTable(props: SquadTableProps) {
                         placeholder="notes"
                       />
                     </td>
+                    <td className="dc-td-actions">
+                      <div className="dc-row-actions">
+                        <button
+                          type="button"
+                          className="dc-row-action-btn"
+                          onClick={() => moveTrooper(t.id, -1)}
+                          disabled={trooperIndex <= 0}
+                          aria-label={`Move ${displayName} up`}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="dc-row-action-btn"
+                          onClick={() => moveTrooper(t.id, 1)}
+                          disabled={trooperIndex === troopers.length - 1}
+                          aria-label={`Move ${displayName} down`}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          className="dc-row-action-btn dc-row-action-btn--danger"
+                          onClick={() => removeTrooper(t.id)}
+                          aria-label={`Delete ${displayName}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </td>
                   </tr>
 
                   {/* EXPANDED ROW */}
                   {isExpanded && (
                     <tr className="dc-expanded-row show">
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div className="dc-expanded-content">
                           <div className="dc-expanded-inner">
                             {/* Weapon */}
@@ -373,6 +480,24 @@ export default function SquadTable(props: SquadTableProps) {
                 </React.Fragment>
               );
             })}
+            {!showAllTroopers && reserveCount > 0 && (
+              <tr className="dc-reserve-toggle-row">
+                <td colSpan={7}>
+                  <button type="button" className="dc-reserve-toggle" onClick={() => setShowAllTroopers(true)}>
+                    {reserveCount} more Trooper{reserveCount === 1 ? "" : "s"} in the barracks…
+                  </button>
+                </td>
+              </tr>
+            )}
+            {showAllTroopers && reserveCount > 0 && (
+              <tr className="dc-reserve-toggle-row">
+                <td colSpan={7}>
+                  <button type="button" className="dc-reserve-toggle" onClick={() => setShowAllTroopers(false)}>
+                    Hide barracks Trooper{reserveCount === 1 ? "" : "s"}
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
