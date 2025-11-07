@@ -30,6 +30,78 @@ const defaultTroopers: T.Trooper[] = Array.from({ length: 5 }, (_, index) =>
   createTrooper(index + 1),
 );
 
+const TROOPER_CALLSIGNS = [
+  "Reaper",
+  "Dusty",
+  "Ghost",
+  "Twitch",
+  "Preacher",
+  "Nails",
+  "Joker",
+  "Doc",
+  "Bishop",
+  "Wrench",
+  "Prophet",
+  "Echo",
+  "Brick",
+  "Sparks",
+  "Ghoul",
+  "Rookie",
+  "Thunder",
+  "Quill",
+  "Hound",
+  "Icebox",
+  "Vulture",
+  "Scorch",
+  "Lucky",
+  "Zero",
+  "Fang",
+  "Sarge",
+  "Whisper",
+  "Tango",
+  "Blaze",
+  "Grit",
+  "Buzz",
+  "Muzzle",
+  "Shade",
+  "Gramps",
+  "Halo",
+  "Knuckles",
+  "Striker",
+  "Latch",
+  "Razor",
+  "Patch",
+  "Slick",
+  "Cinder",
+  "Moose",
+  "Phase",
+  "Bounty",
+  "Trigger",
+  "Frostbite",
+  "Gunner",
+  "Hex",
+  "Sundown",
+  "Bolt",
+  "Nomad",
+  "Switch",
+  "Torque",
+  "Palehorse",
+  "Banshee",
+  "Mutt",
+  "Crash",
+  "Triage",
+  "Static",
+  "Havoc",
+];
+
+function getRandomCallsign(): string {
+  if (TROOPER_CALLSIGNS.length === 0) {
+    return "";
+  }
+  const index = Math.floor(Math.random() * TROOPER_CALLSIGNS.length);
+  return TROOPER_CALLSIGNS[index];
+}
+
 function createEmptyArmory(): T.SquadArmoryState {
   return { requisition: 0, items: [] };
 }
@@ -242,6 +314,14 @@ export default function SquadTable(props: SquadTableProps) {
 
   function bump(id: number, key: "grit" | "ammo", delta: 1 | -1) {
     setTroopers((prev) => prev.map((t) => (t.id === id ? { ...t, [key]: clamp03((t[key] as number) + delta) } : t)));
+  }
+
+  function randomizeTrooperName(id: number) {
+    const callsign = getRandomCallsign();
+    if (!callsign) {
+      return;
+    }
+    update(id, "name", callsign);
   }
 
   function adjustRequisition(delta: number) {
@@ -511,7 +591,6 @@ export default function SquadTable(props: SquadTableProps) {
               <th className="dc-th--center">Status</th>
               <th className="dc-th--center">Grit</th>
               <th className="dc-th--center">Ammo</th>
-              <th>Notes</th>
               <th className="dc-col-actions">Actions</th>
             </tr>
           </thead>
@@ -619,15 +698,6 @@ export default function SquadTable(props: SquadTableProps) {
                       </div>
                     </td>
 
-                    {/* Notes */}
-                    <td className="dc-td--notes">
-                      <input
-                        className="dc-input"
-                        value={t.notes ?? ""}
-                        onChange={(e) => update(t.id, "notes", e.target.value)}
-                        placeholder="notes"
-                      />
-                    </td>
                     <td className="dc-td-actions">
                       <div className="dc-row-actions">
                         <button
@@ -650,6 +720,15 @@ export default function SquadTable(props: SquadTableProps) {
                         </button>
                         <button
                           type="button"
+                          className="dc-row-action-btn"
+                          onClick={() => randomizeTrooperName(t.id)}
+                          title="Randomize"
+                          aria-label={`Randomize ${displayName}'s callsign`}
+                        >
+                          🎲
+                        </button>
+                        <button
+                          type="button"
                           className="dc-row-action-btn dc-row-action-btn--danger"
                           onClick={() => removeTrooper(t.id)}
                           aria-label={`Delete ${displayName}`}
@@ -663,7 +742,7 @@ export default function SquadTable(props: SquadTableProps) {
                   {/* EXPANDED ROW */}
                   {isExpanded && (
                     <tr className="dc-expanded-row show">
-                      <td colSpan={7}>
+                      <td colSpan={6}>
                         <div className="dc-expanded-content">
                           <div className="dc-expanded-inner">
                             {/* Weapon */}
@@ -781,7 +860,7 @@ export default function SquadTable(props: SquadTableProps) {
                                 className="dc-expanded-textarea"
                                 value={t.biography ?? ""}
                                 onChange={(e) => update(t.id, "biography", e.target.value)}
-                                placeholder="Add trooper background, personality, or notes..."
+                                placeholder="Add trooper background, personality, or mission history..."
                               />
                             </div>
                           </div>
@@ -794,7 +873,7 @@ export default function SquadTable(props: SquadTableProps) {
             })}
             {!showAllTroopers && reserveCount > 0 && (
               <tr className="dc-reserve-toggle-row">
-                <td colSpan={7}>
+                <td colSpan={6}>
                   <button type="button" className="dc-reserve-toggle" onClick={() => setShowAllTroopers(true)}>
                     {reserveCount} more Trooper{reserveCount === 1 ? "" : "s"} in the barracks…
                   </button>
@@ -803,7 +882,7 @@ export default function SquadTable(props: SquadTableProps) {
             )}
             {showAllTroopers && reserveCount > 0 && (
               <tr className="dc-reserve-toggle-row">
-                <td colSpan={7}>
+                <td colSpan={6}>
                   <button type="button" className="dc-reserve-toggle" onClick={() => setShowAllTroopers(false)}>
                     Hide barracks Trooper{reserveCount === 1 ? "" : "s"}
                   </button>
