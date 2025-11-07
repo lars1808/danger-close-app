@@ -843,6 +843,7 @@ h1, h2, h3 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .dc-momentum-title {
@@ -852,9 +853,16 @@ h1, h2, h3 {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-dim);
+  flex: 1;
+}
+
+.dc-momentum-status {
+  flex: 1;
+  text-align: center;
 }
 
 .dc-momentum-target {
+  margin-left: auto;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -866,6 +874,68 @@ h1, h2, h3 {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.dc-momentum-defense {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dc-momentum-defense-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-momentum-defense-toggle input {
+  margin: 0;
+}
+
+.dc-momentum-defense-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.dc-momentum-defense-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dc-momentum-defense-text {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.dc-momentum-defense-adjust {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dc-momentum-defense-btn {
+  min-width: 2.1rem;
+}
+
+.dc-momentum-defense-note {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text-dim) 80%, transparent);
 }
 
 .dc-momentum-btn {
