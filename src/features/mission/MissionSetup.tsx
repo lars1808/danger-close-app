@@ -163,6 +163,7 @@ export function normalizeMission(raw: unknown): T.Mission {
     id: Date.now().toString(),
     name: "",
     objective: "",
+    briefing: "",
     difficulty: "Hazardous",
     airspace: "Contested",
     status: "planning",
@@ -184,6 +185,7 @@ export function normalizeMission(raw: unknown): T.Mission {
     id: typeof source.id === "string" && source.id.trim() ? source.id : fallback.id,
     name: typeof source.name === "string" ? source.name : fallback.name,
     objective: typeof source.objective === "string" ? source.objective : fallback.objective,
+    briefing: typeof source.briefing === "string" ? source.briefing : fallback.briefing,
     difficulty: isMissionDifficulty(source.difficulty) ? source.difficulty : fallback.difficulty,
     airspace: isMissionAirspace(source.airspace) ? source.airspace : fallback.airspace,
     status: isMissionStatus(source.status) ? source.status : fallback.status,
@@ -278,6 +280,10 @@ export default function MissionSetup(props: MissionSetupProps) {
     onMissionChange((prev) => ({ ...prev, objective: e.target.value }));
   }
 
+  function handleBriefingChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    onMissionChange((prev) => ({ ...prev, briefing: e.target.value }));
+  }
+
   function handleDifficultyChange(e: React.ChangeEvent<HTMLSelectElement>) {
     onMissionChange((prev) => ({
       ...prev,
@@ -297,6 +303,7 @@ export default function MissionSetup(props: MissionSetupProps) {
       ...prev,
       name: "",
       objective: "",
+      briefing: "",
       status: "planning",
       startTime: undefined,
       sectors: [],
@@ -336,6 +343,7 @@ export default function MissionSetup(props: MissionSetupProps) {
       ...prev,
       name: prev.name.trim(),
       objective: prev.objective.trim(),
+      briefing: prev.briefing.trim(),
       status: "active",
       startTime: prev.startTime ?? Date.now(),
     }));
@@ -588,6 +596,7 @@ export default function MissionSetup(props: MissionSetupProps) {
 
   const trimmedMissionName = mission.name.trim();
   const trimmedMissionObjective = mission.objective.trim();
+  const trimmedMissionBriefing = mission.briefing.trim();
   const deployDisabled = !trimmedMissionName;
 
   return (
@@ -605,6 +614,10 @@ export default function MissionSetup(props: MissionSetupProps) {
               <div>
                 <dt>Objective</dt>
                 <dd>{trimmedMissionObjective || "Objective Pending"}</dd>
+              </div>
+              <div>
+                <dt>Briefing</dt>
+                <dd>{trimmedMissionBriefing || "No briefing provided"}</dd>
               </div>
               <div>
                 <dt>Difficulty</dt>
@@ -815,7 +828,19 @@ export default function MissionSetup(props: MissionSetupProps) {
               value={mission.objective}
               onChange={handleObjectiveChange}
               placeholder="e.g. Seize & Secure / Assault"
-              rows={4}
+              rows={2}
+            />
+          </div>
+
+          {/* Briefing */}
+          <div className="dc-mission-field">
+            <label className="dc-mission-label">Briefing</label>
+            <textarea
+              className="dc-input dc-mission-briefing-input"
+              value={mission.briefing}
+              onChange={handleBriefingChange}
+              placeholder="Mission notes, special directives, intel, etc."
+              rows={5}
             />
           </div>
 
