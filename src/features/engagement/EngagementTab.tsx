@@ -315,12 +315,18 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
   const currentMomentum = selectedSector?.momentum ?? MOMENTUM_DEFAULT;
-  const victoryThreshold = React.useMemo(() => {
+  const threatLevel = React.useMemo(() => {
     if (!selectedSector) {
       return null;
     }
-    return Math.min(MOMENTUM_MAX, parseThreatLevel(selectedSector.content) + 1);
+    return parseThreatLevel(selectedSector.content);
   }, [selectedSector]);
+  const victoryThreshold = React.useMemo(() => {
+    if (threatLevel === null) {
+      return null;
+    }
+    return Math.min(MOMENTUM_MAX, threatLevel + 1);
+  }, [threatLevel]);
   const momentumStatus = React.useMemo(() => {
     if (victoryThreshold === null) {
       return null;
@@ -335,6 +341,31 @@ export default function EngagementTab(props: EngagementTabProps) {
   }, [currentMomentum, victoryThreshold]);
   const momentumDecreaseDisabled = currentMomentum <= MOMENTUM_MIN;
   const momentumIncreaseDisabled = currentMomentum >= MOMENTUM_MAX;
+  const [isDefenseObjectiveEnabled, setIsDefenseObjectiveEnabled] = React.useState(false);
+  const [defenseExchangeGoal, setDefenseExchangeGoal] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (threatLevel === null) {
+      setIsDefenseObjectiveEnabled(false);
+      setDefenseExchangeGoal(null);
+      return;
+    }
+
+    setIsDefenseObjectiveEnabled(false);
+    const randomOffset = Math.random() < 0.5 ? 1 : 2;
+    setDefenseExchangeGoal(threatLevel + randomOffset);
+  }, [threatLevel]);
+
+  const handleDefenseExchangeGoalChange = React.useCallback((delta: 1 | -1) => {
+    setDefenseExchangeGoal((previous) => {
+      if (previous === null) {
+        return previous;
+      }
+
+      const nextValue = Math.max(1, clampNonNegativeInteger(previous + delta));
+      return nextValue;
+    });
+  }, []);
 
   const squadAlerts = React.useMemo(() => {
     if (!selectedSector) {
@@ -860,10 +891,7 @@ export default function EngagementTab(props: EngagementTabProps) {
       const storedSquadName = getStoredSquadName().trim();
       const squadName = storedSquadName || "Unnamed Squad";
       const sectorName = getSectorDisplayName(selectedSector);
-      const threshold = Math.min(
-        MOMENTUM_MAX,
-        parseThreatLevel(selectedSector.content) + 1,
-      );
+      const threshold = Math.min(MOMENTUM_MAX, (threatLevel ?? 0) + 1);
 
       onMissionChange((prev) => ({
         ...prev,
@@ -889,7 +917,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         onAddLog(`${squadName} won engagement in ${sectorName}`, "SYSTEM");
       }
     },
-    [onAddLog, onMissionChange, selectedSector],
+    [onAddLog, onMissionChange, selectedSector, threatLevel],
   );
 
   return (
@@ -1173,6 +1201,15 @@ export default function EngagementTab(props: EngagementTabProps) {
       <article className="dc-engagement-card dc-momentum-card">
         <header className="dc-momentum-header">
           <h3 className="dc-momentum-title">Momentum</h3>
+          {momentumStatus ? (
+            <span
+              className={`dc-momentum-status dc-momentum-status--${momentumStatus.tone}`}
+              role="status"
+              aria-live="polite"
+            >
+              {momentumStatus.label}
+            </span>
+          ) : null}
           {victoryThreshold !== null ? (
             <span className="dc-momentum-target">
               Victory at {formatModifier(victoryThreshold)}
@@ -1217,14 +1254,46 @@ export default function EngagementTab(props: EngagementTabProps) {
           >
             +
           </button>
-          {momentumStatus ? (
-            <span
-              className={`dc-momentum-status dc-momentum-status--${momentumStatus.tone}`}
-              role="status"
-              aria-live="polite"
-            >
-              {momentumStatus.label}
-            </span>
+        </div>
+        <div className="dc-momentum-defense">
+          <label className="dc-momentum-defense-toggle">
+            <input
+              type="checkbox"
+              checked={isDefenseObjectiveEnabled}
+              onChange={(event) => setIsDefenseObjectiveEnabled(event.currentTarget.checked)}
+            />
+            <span>Defense</span>
+          </label>
+          {isDefenseObjectiveEnabled && defenseExchangeGoal !== null ? (
+            <div className="dc-momentum-defense-body">
+              <div className="dc-momentum-defense-row">
+                <span className="dc-momentum-defense-text">
+                  Hold out for <strong>{defenseExchangeGoal}</strong> Exchanges
+                </span>
+                <div className="dc-momentum-defense-adjust">
+                  <button
+                    type="button"
+                    className="dc-btn dc-btn--sm dc-momentum-defense-btn"
+                    onClick={() => handleDefenseExchangeGoalChange(-1)}
+                    disabled={defenseExchangeGoal <= 1}
+                    aria-label="Decrease defense exchange goal"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    className="dc-btn dc-btn--sm dc-momentum-defense-btn"
+                    onClick={() => handleDefenseExchangeGoalChange(1)}
+                    aria-label="Increase defense exchange goal"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <p className="dc-momentum-defense-note">
+                Momentum must be at +1 or higher when timer reaches 0 for victory
+              </p>
+            </div>
           ) : null}
         </div>
       </article>
