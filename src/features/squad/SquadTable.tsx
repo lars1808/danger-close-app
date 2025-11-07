@@ -4,6 +4,8 @@ import {
   SQUAD_STORAGE_KEY,
   SQUAD_NAME_STORAGE_KEY,
   SQUAD_UPDATED_EVENT,
+  SQUAD_ARMORY_STORAGE_KEY,
+  getStoredArmory,
 } from "./storageKeys";
 import { getSectorDisplayName } from "../mission/missionUtils";
 
@@ -28,6 +30,157 @@ const defaultTroopers: T.Trooper[] = Array.from({ length: 5 }, (_, index) =>
   createTrooper(index + 1),
 );
 
+function createEmptyArmory(): T.SquadArmoryState {
+  return { requisition: 0, items: [] };
+}
+
+function createInventoryItemId(): string {
+  const globalCrypto = typeof globalThis !== "undefined" ? (globalThis as typeof globalThis & { crypto?: Crypto }).crypto : undefined;
+  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
+    try {
+      return globalCrypto.randomUUID();
+    } catch (error) {
+      // Fall through to time-based ID
+    }
+  }
+  const timePart = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  return `gear-${timePart}-${randomPart}`;
+}
+
+interface InitialSquadState {
+  troopers: T.Trooper[];
+  armory: T.SquadArmoryState;
+}
+
+function loadInitialSquadState(): InitialSquadState {
+  let rawSquad: unknown = null;
+  try {
+    rawSquad = localStorage.getItem(SQUAD_STORAGE_KEY);
+  } catch (error) {
+    rawSquad = null;
+  }
+
+  let parsedSquad: Partial<T.Trooper>[] | null = null;
+  if (typeof rawSquad === "string" && rawSquad.length > 0) {
+    try {
+      const parsed = JSON.parse(rawSquad);
+      parsedSquad = Array.isArray(parsed) ? (parsed as Partial<T.Trooper>[]) : null;
+    } catch (error) {
+      parsedSquad = null;
+    }
+  }
+
+  const base = parsedSquad ?? defaultTroopers;
+  const legacyGearByTrooper = new Map<number, string[]>();
+
+  const troopers = base.map((record, index) => {
+    const fallback = defaultTroopers[index] ?? defaultTroopers[0];
+    const id = typeof record?.id === "number" ? record.id : fallback.id;
+    const legacySource = Array.isArray(record?.specialGear)
+      ? (record?.specialGear as unknown[])
+      : [];
+    const legacyGear = legacySource.filter((gear): gear is string => typeof gear === "string");
+    legacyGearByTrooper.set(id, legacyGear);
+    const gritValue = Number(record?.grit ?? Number.NaN);
+    const ammoValue = Number(record?.ammo ?? Number.NaN);
+
+    return {
+      id,
+      name: typeof record?.name === "string" ? record.name : fallback.name,
+      status: (record?.status as T.Status) ?? "OK",
+      grit: Number.isFinite(gritValue) ? Math.trunc(gritValue) : 3,
+      ammo: Number.isFinite(ammoValue) ? Math.trunc(ammoValue) : 3,
+      notes: typeof record?.notes === "string" ? record.notes : fallback.notes ?? "",
+      weaponId: (record?.weaponId as T.WeaponId) ?? fallback.weaponId ?? "assault_rifle",
+      armorId: (record?.armorId as T.ArmorId) ?? fallback.armorId ?? "medium",
+      biography: typeof record?.biography === "string" ? record.biography : fallback.biography ?? "",
+      specialGear: [],
+      offensivePosition:
+        (record?.offensivePosition as T.OffensivePosition | undefined) ??
+        fallback.offensivePosition ??
+        "Engaged",
+      defensivePosition:
+        (record?.defensivePosition as T.DefensivePosition | undefined) ??
+        fallback.defensivePosition ??
+        "In Cover",
+    } satisfies T.Trooper;
+  });
+
+  const storedArmory = getStoredArmory();
+  const validTrooperIds = new Set(troopers.map((trooper) => trooper.id));
+  const normalizedItems = storedArmory.items
+    .filter((item) => !!item && typeof item.id === "string" && typeof item.gearId === "string")
+    .filter((item) => item.gearId in T.SPECIAL_GEAR_INDEX)
+    .map((item) => ({
+      id: item.id,
+      gearId: item.gearId,
+      assignedTrooperId:
+        typeof item.assignedTrooperId === "number" && validTrooperIds.has(item.assignedTrooperId)
+          ? item.assignedTrooperId
+          : null,
+    }));
+
+  let armory: T.SquadArmoryState;
+
+  if (normalizedItems.length === 0) {
+    const generatedItems: T.SquadInventoryItem[] = [];
+    troopers.forEach((trooper) => {
+      const legacyGear = legacyGearByTrooper.get(trooper.id) ?? [];
+      legacyGear.forEach((gearId) => {
+        if (!(gearId in T.SPECIAL_GEAR_INDEX)) {
+          return;
+        }
+        generatedItems.push({
+          id: createInventoryItemId(),
+          gearId,
+          assignedTrooperId: trooper.id,
+        });
+      });
+    });
+    armory = { requisition: 0, items: generatedItems };
+  } else {
+    const itemsById = new Map<string, T.SquadInventoryItem>();
+    normalizedItems.forEach((item) => {
+      itemsById.set(item.id, { ...item });
+    });
+
+    troopers.forEach((trooper) => {
+      const legacyGear = legacyGearByTrooper.get(trooper.id) ?? [];
+      legacyGear.forEach((itemId) => {
+        const existing = itemsById.get(itemId);
+        if (existing && existing.assignedTrooperId === null) {
+          existing.assignedTrooperId = trooper.id;
+        }
+      });
+    });
+
+    armory = {
+      requisition: Math.max(0, Math.trunc(storedArmory.requisition ?? 0)),
+      items: Array.from(itemsById.values()),
+    };
+  }
+
+  const assignmentsByTrooper = new Map<number, string[]>();
+  armory.items.forEach((item) => {
+    if (item.assignedTrooperId !== null && validTrooperIds.has(item.assignedTrooperId)) {
+      const list = assignmentsByTrooper.get(item.assignedTrooperId) ?? [];
+      list.push(item.id);
+      assignmentsByTrooper.set(item.assignedTrooperId, list);
+    }
+  });
+
+  const troopersWithAssignments = troopers.map((trooper) => ({
+    ...trooper,
+    specialGear: assignmentsByTrooper.get(trooper.id) ?? [],
+  }));
+
+  return {
+    troopers: troopersWithAssignments,
+    armory,
+  };
+}
+
 interface SquadTableProps {
   onAddLog: (text: string, source: "USER" | "SYSTEM") => void;
   mission: T.Mission;
@@ -35,44 +188,44 @@ interface SquadTableProps {
 }
 export default function SquadTable(props: SquadTableProps) {
   const { onAddLog, mission, currentSectorId } = props;
-  const [troopers, setTroopers] = useState<T.Trooper[]>(() => {
-    const saved = localStorage.getItem(SQUAD_STORAGE_KEY);
-    const base = saved ? (JSON.parse(saved) as Partial<T.Trooper>[]) : defaultTroopers;
-    return base.map((r, i) => {
-      const d = defaultTroopers[i] ?? defaultTroopers[0];
-      return {
-        id: r.id ?? d.id,
-        name: r.name ?? d.name,
-        status: (r.status as T.Status) ?? "OK",
-        grit: Number.isFinite(r.grit) ? (r.grit as number) : 3,
-        ammo: Number.isFinite(r.ammo) ? (r.ammo as number) : 3,
-        notes: r.notes ?? "",
-        weaponId: (r.weaponId as T.WeaponId) ?? d.weaponId ?? "assault_rifle",
-        armorId: (r.armorId as T.ArmorId) ?? d.armorId ?? "medium",
-        biography: r.biography ?? "",
-        specialGear: Array.isArray(r.specialGear) ? r.specialGear : [],
-        offensivePosition:
-          (r.offensivePosition as T.OffensivePosition | undefined) ??
-          d.offensivePosition ??
-          "Engaged",
-        defensivePosition:
-          (r.defensivePosition as T.DefensivePosition | undefined) ??
-          d.defensivePosition ??
-          "In Cover",
-      };
-    });
-  });
+  const initialStateRef = React.useRef<InitialSquadState | null>(null);
+  if (initialStateRef.current === null) {
+    initialStateRef.current = loadInitialSquadState();
+  }
+  const initialState = initialStateRef.current;
+
+  const [troopers, setTroopers] = useState<T.Trooper[]>(initialState.troopers);
+  const [armory, setArmory] = useState<T.SquadArmoryState>(initialState.armory);
 
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [showAllTroopers, setShowAllTroopers] = useState(false);
   const [draggedTrooperId, setDraggedTrooperId] = useState<number | null>(null);
   const [dragOverTrooperId, setDragOverTrooperId] = useState<number | null>(null);
   const [squadName, setSquadName] = useState<string>(() => localStorage.getItem(SQUAD_NAME_STORAGE_KEY) ?? "");
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+
+  const inventoryIndex = React.useMemo(() => {
+    const index: Record<string, T.SquadInventoryItem> = {};
+    armory.items.forEach((item) => {
+      index[item.id] = item;
+    });
+    return index;
+  }, [armory.items]);
+
+  const unassignedInventoryItems = React.useMemo(
+    () => armory.items.filter((item) => item.assignedTrooperId === null),
+    [armory.items],
+  );
 
   useEffect(() => {
     localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(troopers));
     window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
   }, [troopers]);
+
+  useEffect(() => {
+    localStorage.setItem(SQUAD_ARMORY_STORAGE_KEY, JSON.stringify(armory));
+    window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
+  }, [armory]);
 
   useEffect(() => {
     localStorage.setItem(SQUAD_NAME_STORAGE_KEY, squadName);
@@ -91,12 +244,104 @@ export default function SquadTable(props: SquadTableProps) {
     setTroopers((prev) => prev.map((t) => (t.id === id ? { ...t, [key]: clamp03((t[key] as number) + delta) } : t)));
   }
 
+  function adjustRequisition(delta: number) {
+    setArmory((prev) => {
+      const nextValue = Math.max(0, prev.requisition + delta);
+      if (nextValue === prev.requisition) {
+        return prev;
+      }
+      return { ...prev, requisition: nextValue };
+    });
+  }
+
+  function handleAcquireGear(gearId: string) {
+    const gear = T.SPECIAL_GEAR_INDEX[gearId];
+    if (!gear) {
+      return;
+    }
+
+    setArmory((prev) => {
+      if (prev.requisition < gear.requisition) {
+        return prev;
+      }
+      const newItem: T.SquadInventoryItem = {
+        id: createInventoryItemId(),
+        gearId: gear.id,
+        assignedTrooperId: null,
+      };
+      return {
+        requisition: prev.requisition - gear.requisition,
+        items: [...prev.items, newItem],
+      };
+    });
+  }
+
+  function assignInventoryItem(itemId: string, trooperId: number | null) {
+    const currentOwner = inventoryIndex[itemId]?.assignedTrooperId ?? null;
+    if (currentOwner === trooperId) {
+      return;
+    }
+
+    setArmory((prev) => ({
+      requisition: prev.requisition,
+      items: prev.items.map((item) => (item.id === itemId ? { ...item, assignedTrooperId: trooperId } : item)),
+    }));
+
+    setTroopers((prev) =>
+      prev.map((trooper) => {
+        const currentGear = Array.isArray(trooper.specialGear) ? trooper.specialGear : [];
+        const hasItem = currentGear.includes(itemId);
+        const shouldHave = trooperId !== null && trooper.id === trooperId;
+
+        if (shouldHave && !hasItem) {
+          return { ...trooper, specialGear: [...currentGear, itemId] };
+        }
+
+        if (!shouldHave && hasItem) {
+          return { ...trooper, specialGear: currentGear.filter((gearId) => gearId !== itemId) };
+        }
+
+        return trooper;
+      }),
+    );
+  }
+
+  function destroyInventoryItem(itemId: string) {
+    const item = inventoryIndex[itemId];
+    if (!item) {
+      return;
+    }
+
+    const gear = T.SPECIAL_GEAR_INDEX[item.gearId];
+    const displayName = gear?.name ?? "this item";
+    if (!confirm(`Are you sure you want to destroy ${displayName}?`)) {
+      return;
+    }
+
+    setTroopers((prev) =>
+      prev.map((trooper) => {
+        const currentGear = Array.isArray(trooper.specialGear) ? trooper.specialGear : [];
+        if (!currentGear.includes(itemId)) {
+          return trooper;
+        }
+        return { ...trooper, specialGear: currentGear.filter((gearId) => gearId !== itemId) };
+      }),
+    );
+
+    setArmory((prev) => ({
+      requisition: prev.requisition,
+      items: prev.items.filter((candidate) => candidate.id !== itemId),
+    }));
+  }
+
   function resetSquad() {
     if (confirm("Reset squad to defaults?")) {
-      setTroopers(defaultTroopers.map((trooper) => ({ ...trooper })));
+      setTroopers(defaultTroopers.map((trooper) => ({ ...trooper, specialGear: [] })));
+      setArmory(createEmptyArmory());
       localStorage.removeItem(SQUAD_STORAGE_KEY);
       setSquadName("");
       localStorage.removeItem(SQUAD_NAME_STORAGE_KEY);
+      localStorage.removeItem(SQUAD_ARMORY_STORAGE_KEY);
       setShowAllTroopers(false);
       setExpandedIds(new Set());
     }
@@ -140,6 +385,12 @@ export default function SquadTable(props: SquadTableProps) {
       next.delete(id);
       return next;
     });
+    setArmory((prev) => ({
+      requisition: prev.requisition,
+      items: prev.items.map((item) =>
+        item.assignedTrooperId === id ? { ...item, assignedTrooperId: null } : item,
+      ),
+    }));
     if (nextTroopers.length <= 5) {
       setShowAllTroopers(false);
     }
@@ -209,10 +460,18 @@ export default function SquadTable(props: SquadTableProps) {
   function getGearSummary(trooper: T.Trooper): string {
     const weapon = T.WEAPON_INDEX[trooper.weaponId]?.name ?? "Unknown";
     const armor = T.ARMOR_INDEX[trooper.armorId]?.name ?? "Unknown";
-    const special = (trooper.specialGear ?? []).length > 0
-      ? (trooper.specialGear ?? []).map((id) => T.SPECIAL_GEAR_INDEX[id]?.name).join(", ")
-      : "";
-    return special ? `${weapon}, ${armor}, ${special}` : `${weapon}, ${armor}`;
+    const specialNames = (trooper.specialGear ?? [])
+      .map((itemId) => {
+        const inventoryItem = inventoryIndex[itemId];
+        if (inventoryItem) {
+          return T.SPECIAL_GEAR_INDEX[inventoryItem.gearId]?.name ?? null;
+        }
+        return T.SPECIAL_GEAR_INDEX[itemId]?.name ?? null;
+      })
+      .filter((name): name is string => Boolean(name));
+    return specialNames.length > 0
+      ? `${weapon}, ${armor}, ${specialNames.join(", ")}`
+      : `${weapon}, ${armor}`;
   }
 
   const primaryTroopers = troopers.slice(0, 5);
@@ -267,6 +526,13 @@ export default function SquadTable(props: SquadTableProps) {
               const isDragOver = dragOverTrooperId === t.id && draggedTrooperId !== null && draggedTrooperId !== t.id;
               const displayIndex = trooperIndex + 1;
               const displayName = t.name.trim() || (trooperIndex >= 0 ? `Trooper ${displayIndex}` : "Trooper");
+              const assignedItems = (t.specialGear ?? [])
+                .map((itemId) => inventoryIndex[itemId])
+                .filter((item): item is T.SquadInventoryItem => Boolean(item));
+              const legacyAssignedNames = (t.specialGear ?? [])
+                .filter((itemId) => !inventoryIndex[itemId] && T.SPECIAL_GEAR_INDEX[itemId])
+                .map((itemId) => T.SPECIAL_GEAR_INDEX[itemId]?.name ?? "")
+                .filter((name) => Boolean(name));
 
               return (
                 <React.Fragment key={t.id}>
@@ -442,25 +708,71 @@ export default function SquadTable(props: SquadTableProps) {
                               </div>
                             </div>
 
-{/* Special Gear - Dropdown */}
-<div className="dc-expanded-field">
-  <label className="dc-expanded-label">Special Gear</label>
-  <select
-    className="dc-select"
-    value={(t.specialGear ?? [])[0] ?? ""}
-    onChange={(e) => {
-      const selected = e.target.value;
-      update(t.id, "specialGear", selected ? [selected] : []);
-    }}
-  >
-    <option value="">None</option>
-    {T.SPECIAL_GEAR.sort((a, b) => a.name.localeCompare(b.name)).map((gear) => (
-      <option key={gear.id} value={gear.id}>
-        {gear.name} ({gear.requisition})
-      </option>
-    ))}
-  </select>
-</div>
+                            {/* Special Gear - Inventory assignments */}
+                            <div className="dc-expanded-field">
+                              <label className="dc-expanded-label">Special Gear</label>
+                              <div className="dc-armory-trooper-gear">
+                                {assignedItems.map((item) => {
+                                  const gear = T.SPECIAL_GEAR_INDEX[item.gearId];
+                                  return (
+                                    <div key={item.id} className="dc-armory-trooper-gear-item">
+                                      <div className="dc-armory-trooper-gear-info">
+                                        <div className="dc-armory-trooper-gear-name">{gear?.name ?? "Unknown Gear"}</div>
+                                        {gear?.function ? (
+                                          <div className="dc-armory-trooper-gear-function">{gear.function}</div>
+                                        ) : null}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="dc-btn dc-btn--sm"
+                                        onClick={() => assignInventoryItem(item.id, null)}
+                                      >
+                                        Unassign
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                                {legacyAssignedNames.map((name, index) => (
+                                  <div key={`legacy-${t.id}-${index}`} className="dc-armory-trooper-gear-item">
+                                    <div className="dc-armory-trooper-gear-info">
+                                      <div className="dc-armory-trooper-gear-name">{name}</div>
+                                      <div className="dc-armory-trooper-gear-function">Legacy gear (needs reacquisition)</div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {assignedItems.length === 0 && legacyAssignedNames.length === 0 ? (
+                                  <div className="dc-armory-trooper-gear-empty">No special gear assigned.</div>
+                                ) : null}
+                              </div>
+                              <div className="dc-armory-trooper-gear-controls">
+                                <select
+                                  className="dc-select"
+                                  value=""
+                                  onChange={(event) => {
+                                    const itemId = event.target.value;
+                                    if (!itemId) {
+                                      return;
+                                    }
+                                    assignInventoryItem(itemId, t.id);
+                                    event.currentTarget.value = "";
+                                  }}
+                                  disabled={unassignedInventoryItems.length === 0}
+                                >
+                                  <option value="">Assign gear…</option>
+                                  {unassignedInventoryItems.map((item) => {
+                                    const gear = T.SPECIAL_GEAR_INDEX[item.gearId];
+                                    return (
+                                      <option key={item.id} value={item.id}>
+                                        {gear?.name ?? item.gearId}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                                {unassignedInventoryItems.length === 0 ? (
+                                  <div className="dc-armory-trooper-gear-hint">No unassigned gear available.</div>
+                                ) : null}
+                              </div>
+                            </div>
 
                             {/* Biography */}
                             <div className="dc-expanded-field">
@@ -501,6 +813,148 @@ export default function SquadTable(props: SquadTableProps) {
           </tbody>
         </table>
       </div>
+      <section className="dc-armory" aria-labelledby="dc-armory-heading">
+        <div className="dc-armory-header">
+          <h3 id="dc-armory-heading" className="dc-armory-title">Squad Armory</h3>
+          <div className="dc-armory-controls">
+            <div className="dc-armory-requisition" aria-live="polite">
+              <span className="dc-armory-requisition-label">Requisition:</span>
+              <div className="dc-inline-group">
+                <button
+                  type="button"
+                  className="dc-btn dc-btn--sm"
+                  onClick={() => adjustRequisition(-1)}
+                  disabled={armory.requisition <= 0}
+                  aria-label="Decrease requisition"
+                >
+                  -
+                </button>
+                <span className="dc-valbox" aria-live="polite">{armory.requisition}</span>
+                <button
+                  type="button"
+                  className="dc-btn dc-btn--sm"
+                  onClick={() => adjustRequisition(1)}
+                  aria-label="Increase requisition"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <button type="button" className="dc-btn" onClick={() => setIsCatalogOpen(true)}>
+              Acquire Gear
+            </button>
+          </div>
+        </div>
+
+        <div className="dc-armory-body">
+          {armory.items.length === 0 ? (
+            <div className="dc-armory-empty">No special gear acquired yet. Spend requisition to equip the squad.</div>
+          ) : (
+            <ul className="dc-armory-items">
+              {armory.items.map((item) => {
+                const gear = T.SPECIAL_GEAR_INDEX[item.gearId];
+                const assignedTrooper = troopers.find((trooper) => trooper.id === item.assignedTrooperId) ?? null;
+                const assignedIndex = assignedTrooper ? troopers.findIndex((trooper) => trooper.id === assignedTrooper.id) : -1;
+                const assignedName = assignedTrooper
+                  ? assignedTrooper.name.trim() || (assignedIndex >= 0 ? `Trooper ${assignedIndex + 1}` : `Trooper ${assignedTrooper.id}`)
+                  : "Unassigned";
+
+                return (
+                  <li key={item.id} className="dc-armory-item">
+                    <div className="dc-armory-item-main">
+                      <div className="dc-armory-item-header">
+                        <h4 className="dc-armory-item-name">{gear?.name ?? "Unknown Gear"}</h4>
+                        <span className="dc-armory-item-cost">Req {gear?.requisition ?? "?"}</span>
+                      </div>
+                      {gear?.description ? (
+                        <p className="dc-armory-item-description">{gear.description}</p>
+                      ) : null}
+                      {gear?.function ? (
+                        <p className="dc-armory-item-function">{gear.function}</p>
+                      ) : null}
+                    </div>
+                    <div className="dc-armory-item-actions">
+                      <label className="dc-armory-item-label" htmlFor={`armory-assign-${item.id}`}>
+                        Assigned To
+                      </label>
+                      <select
+                        id={`armory-assign-${item.id}`}
+                        className="dc-select"
+                        value={item.assignedTrooperId ?? ""}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          if (!value) {
+                            assignInventoryItem(item.id, null);
+                          } else {
+                            assignInventoryItem(item.id, Number(value));
+                          }
+                        }}
+                      >
+                        <option value="">Unassigned</option>
+                        {troopers.map((trooper, index) => {
+                          const label = trooper.name.trim() || `Trooper ${index + 1}`;
+                          return (
+                            <option key={trooper.id} value={trooper.id}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <div className="dc-armory-item-assigned">{assignedName}</div>
+                      <button
+                        type="button"
+                        className="dc-btn dc-btn--sm dc-armory-item-destroy"
+                        onClick={() => destroyInventoryItem(item.id)}
+                      >
+                        Destroy
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {isCatalogOpen ? (
+        <div className="dc-modal-overlay" onClick={() => setIsCatalogOpen(false)}>
+          <div className="dc-modal dc-armory-modal" onClick={(event) => event.stopPropagation()}>
+            <h3 className="dc-armory-modal-title">Acquire Special Gear</h3>
+            <p className="dc-armory-modal-summary">Available requisition: {armory.requisition}</p>
+            <div className="dc-armory-catalog">
+              {T.SPECIAL_GEAR.map((gear) => {
+                const canAfford = armory.requisition >= gear.requisition;
+                return (
+                  <div key={gear.id} className="dc-armory-catalog-item">
+                    <div className="dc-armory-catalog-info">
+                      <div className="dc-armory-catalog-header">
+                        <div className="dc-armory-catalog-name">{gear.name}</div>
+                        <span className="dc-armory-catalog-cost">Req {gear.requisition}</span>
+                      </div>
+                      <p className="dc-armory-catalog-description">{gear.description}</p>
+                      <p className="dc-armory-catalog-function">{gear.function}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="dc-btn dc-btn--sm"
+                      onClick={() => handleAcquireGear(gear.id)}
+                      disabled={!canAfford}
+                    >
+                      Acquire
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="dc-modal-buttons">
+              <button type="button" className="dc-btn" onClick={() => setIsCatalogOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
