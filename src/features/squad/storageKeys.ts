@@ -9,7 +9,7 @@ export const SQUAD_ARMORY_STORAGE_KEY = "danger-close-squad-armory";
 export function getStoredSquadName(): string {
   try {
     return localStorage.getItem(SQUAD_NAME_STORAGE_KEY) ?? "";
-  } catch (error) {
+  } catch {
     return "";
   }
 }
@@ -24,7 +24,7 @@ export function getStoredSquad(): Partial<Trooper>[] {
     }
 
     return parsed as Partial<Trooper>[];
-  } catch (error) {
+  } catch {
     return [];
   }
 }
@@ -97,7 +97,7 @@ export function getStoredArmory(): SquadArmoryState {
     const items = sanitizeInventoryItems(parsed?.items ?? []);
 
     return { requisition, items };
-  } catch (error) {
+  } catch {
     return { requisition: 0, items: [] };
   }
 }
