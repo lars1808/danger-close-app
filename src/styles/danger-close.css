@@ -838,6 +838,88 @@ h1, h2, h3 {
   gap: 16px;
 }
 
+.dc-hard-targets-card {
+  gap: 12px;
+}
+
+.dc-hard-targets-header {
+  align-items: center;
+  gap: 10px;
+}
+
+.dc-hard-targets-add {
+  min-width: 32px;
+  justify-content: center;
+}
+
+.dc-hard-targets-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-hard-targets-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dc-hard-targets-name {
+  flex: 1 1 180px;
+}
+
+.dc-hard-targets-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.dc-hard-targets-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-hard-targets-adjust {
+  min-width: 32px;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.dc-hard-targets-hits {
+  width: 72px;
+  text-align: center;
+}
+
+.dc-hard-targets-remove {
+  margin-left: auto;
+  min-width: 32px;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.dc-hard-targets-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.dc-hard-targets-item.is-neutralized .dc-hard-targets-name,
+.dc-hard-targets-item.is-neutralized .dc-hard-targets-hits {
+  color: var(--bleeding);
+  text-decoration: line-through;
+  font-weight: 600;
+}
+
 .dc-momentum-header {
   display: flex;
   align-items: center;

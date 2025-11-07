@@ -201,6 +201,14 @@ function computeFatigueModifier(advanceRolls: number): number {
   return -Math.floor(advanceRolls / 3);
 }
 
+function generateHardTargetId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `hard-target-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 interface EngagementTabProps {
   mission: T.Mission;
   currentSectorId: string | null;
@@ -315,6 +323,10 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const selectedSector = threatSectors.find((sector) => sector.id === currentSectorId) ?? null;
   const currentMomentum = selectedSector?.momentum ?? MOMENTUM_DEFAULT;
+  const hardTargets = React.useMemo(
+    () => selectedSector?.hardTargets ?? [],
+    [selectedSector],
+  );
   const threatLevel = React.useMemo(() => {
     if (!selectedSector) {
       return null;
@@ -920,6 +932,128 @@ export default function EngagementTab(props: EngagementTabProps) {
     [onAddLog, onMissionChange, selectedSector, threatLevel],
   );
 
+  const handleAddHardTarget = React.useCallback(() => {
+    if (!selectedSector) {
+      return;
+    }
+
+    const newHardTarget: T.MissionHardTarget = {
+      id: generateHardTargetId(),
+      name: "",
+      hits: 3,
+    };
+
+    onMissionChange((prev) => ({
+      ...prev,
+      sectors: prev.sectors.map((sector) =>
+        sector.id === selectedSector.id
+          ? {
+              ...sector,
+              hardTargets: [...sector.hardTargets, newHardTarget],
+            }
+          : sector,
+      ),
+    }));
+  }, [onMissionChange, selectedSector]);
+
+  const handleHardTargetNameChange = React.useCallback(
+    (targetId: string, value: string) => {
+      if (!selectedSector) {
+        return;
+      }
+
+      onMissionChange((prev) => ({
+        ...prev,
+        sectors: prev.sectors.map((sector) =>
+          sector.id === selectedSector.id
+            ? {
+                ...sector,
+                hardTargets: sector.hardTargets.map((target) =>
+                  target.id === targetId ? { ...target, name: value } : target,
+                ),
+              }
+            : sector,
+        ),
+      }));
+    },
+    [onMissionChange, selectedSector],
+  );
+
+  const handleHardTargetHitsChange = React.useCallback(
+    (targetId: string, value: number) => {
+      if (!selectedSector) {
+        return;
+      }
+
+      const target = selectedSector.hardTargets.find((item) => item.id === targetId);
+      if (!target) {
+        return;
+      }
+
+      const nextHits = clampNonNegativeInteger(value);
+      if (nextHits === target.hits) {
+        return;
+      }
+
+      const shouldLogNeutralized = target.hits > 0 && nextHits === 0;
+      const targetName = target.name.trim() || "Hard Target";
+
+      onMissionChange((prev) => ({
+        ...prev,
+        sectors: prev.sectors.map((sector) =>
+          sector.id === selectedSector.id
+            ? {
+                ...sector,
+                hardTargets: sector.hardTargets.map((item) =>
+                  item.id === targetId ? { ...item, hits: nextHits } : item,
+                ),
+              }
+            : sector,
+        ),
+      }));
+
+      if (shouldLogNeutralized) {
+        const storedSquadName = getStoredSquadName().trim();
+        const squadName = storedSquadName || "Unnamed Squad";
+        onAddLog(`++ ${squadName} has neutralized ${targetName} ++`, "SYSTEM");
+      }
+    },
+    [onAddLog, onMissionChange, selectedSector],
+  );
+
+  const handleHardTargetHitsAdjust = React.useCallback(
+    (targetId: string, delta: 1 | -1) => {
+      const target = hardTargets.find((item) => item.id === targetId);
+      if (!target) {
+        return;
+      }
+
+      handleHardTargetHitsChange(targetId, target.hits + delta);
+    },
+    [handleHardTargetHitsChange, hardTargets],
+  );
+
+  const handleHardTargetDelete = React.useCallback(
+    (targetId: string) => {
+      if (!selectedSector) {
+        return;
+      }
+
+      onMissionChange((prev) => ({
+        ...prev,
+        sectors: prev.sectors.map((sector) =>
+          sector.id === selectedSector.id
+            ? {
+                ...sector,
+                hardTargets: sector.hardTargets.filter((target) => target.id !== targetId),
+              }
+            : sector,
+        ),
+      }));
+    },
+    [onMissionChange, selectedSector],
+  );
+
   return (
     <section className="dc-engagement" aria-label="Engagement Overview">
       <div className="dc-engagement-field">
@@ -1296,6 +1430,96 @@ export default function EngagementTab(props: EngagementTabProps) {
             </div>
           ) : null}
         </div>
+      </article>
+
+      <article className="dc-engagement-card dc-momentum-card dc-hard-targets-card">
+        <header className="dc-momentum-header dc-hard-targets-header">
+          <h3 className="dc-momentum-title">Hard Targets</h3>
+          <button
+            type="button"
+            className="dc-btn dc-btn--sm dc-hard-targets-add"
+            onClick={handleAddHardTarget}
+            disabled={!selectedSector}
+            aria-label="Add hard target"
+          >
+            +
+          </button>
+        </header>
+        {selectedSector ? (
+          hardTargets.length > 0 ? (
+            <ul className="dc-hard-targets-list">
+              {hardTargets.map((target, index) => {
+                const isNeutralized = target.hits <= 0;
+                const placeholder = `Hard Target ${index + 1}`;
+                return (
+                  <li
+                    key={target.id}
+                    className={`dc-hard-targets-item${isNeutralized ? " is-neutralized" : ""}`}
+                  >
+                    <input
+                      type="text"
+                      className={`dc-input dc-hard-targets-name${
+                        isNeutralized ? " is-neutralized" : ""
+                      }`}
+                      value={target.name}
+                      placeholder={placeholder}
+                      onChange={(event) => handleHardTargetNameChange(target.id, event.target.value)}
+                    />
+                    <div className="dc-hard-targets-controls">
+                      <span className="dc-hard-targets-label">Hits:</span>
+                      <button
+                        type="button"
+                        className="dc-btn dc-btn--sm dc-hard-targets-adjust"
+                        onClick={() => handleHardTargetHitsAdjust(target.id, -1)}
+                        disabled={target.hits <= 0}
+                        aria-label={`Decrease hits for ${target.name || placeholder}`}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        className={`dc-input dc-hard-targets-hits${
+                          isNeutralized ? " is-neutralized" : ""
+                        }`}
+                        min={0}
+                        inputMode="numeric"
+                        value={target.hits}
+                        onChange={(event) => {
+                          const parsedValue = Number.parseInt(event.target.value, 10);
+                          handleHardTargetHitsChange(
+                            target.id,
+                            Number.isNaN(parsedValue) ? 0 : parsedValue,
+                          );
+                        }}
+                        aria-label={`Set hits for ${target.name || placeholder}`}
+                      />
+                      <button
+                        type="button"
+                        className="dc-btn dc-btn--sm dc-hard-targets-adjust"
+                        onClick={() => handleHardTargetHitsAdjust(target.id, 1)}
+                        aria-label={`Increase hits for ${target.name || placeholder}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="dc-btn dc-btn--sm dc-hard-targets-remove"
+                      onClick={() => handleHardTargetDelete(target.id)}
+                      aria-label={`Remove ${target.name || placeholder}`}
+                    >
+                      ×
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="dc-hard-targets-empty">No hard targets assigned.</p>
+          )
+        ) : (
+          <p className="dc-hard-targets-empty">Select a threat sector to manage hard targets.</p>
+        )}
       </article>
 
       <div className="dc-engagement-squad">

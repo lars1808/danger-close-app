@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useEffect, useRef } from "react";
 import * as T from "../squad/types";
 import { getStoredSquadName } from "../squad/storageKeys";
@@ -103,6 +104,14 @@ function generateSectorId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function generateHardTargetId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `hard-target-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function isMissionCover(value: unknown): value is T.MissionCover {
   return typeof value === "string" && MISSION_COVER_OPTIONS.includes(value as T.MissionCover);
 }
@@ -127,6 +136,42 @@ function isMissionStatus(value: unknown): value is T.Mission["status"] {
   return typeof value === "string" && MISSION_STATUS_OPTIONS.includes(value as T.Mission["status"]);
 }
 
+function clampNonNegativeInteger(value: unknown, fallback: number): number {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number.parseFloat(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.floor(numericValue));
+}
+
+function normalizeHardTarget(target: unknown, index: number): T.MissionHardTarget {
+  if (!target || typeof target !== "object") {
+    return {
+      id: generateHardTargetId(),
+      name: "",
+      hits: 3,
+    };
+  }
+
+  const source = target as Partial<T.MissionHardTarget> & { hits?: unknown };
+
+  return {
+    id:
+      typeof source.id === "string" && source.id.trim()
+        ? source.id
+        : `legacy-hard-target-${index}-${generateHardTargetId()}`,
+    name: typeof source.name === "string" ? source.name : "",
+    hits: clampNonNegativeInteger(source.hits, 3),
+  };
+}
+
 function normalizeSector(sector: unknown, index: number): T.MissionSector {
   if (!sector || typeof sector !== "object") {
     return {
@@ -137,6 +182,7 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       content: "Nothing",
       weather: "Normal",
       momentum: MOMENTUM_DEFAULT,
+      hardTargets: [],
     };
   }
 
@@ -155,6 +201,9 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       ? (rawSector.weather as T.MissionWeather)
       : "Normal",
     momentum: clampMomentum(rawSector.momentum),
+    hardTargets: Array.isArray(rawSector.hardTargets)
+      ? rawSector.hardTargets.map((target, targetIndex) => normalizeHardTarget(target, targetIndex))
+      : [],
   };
 }
 
@@ -365,6 +414,7 @@ export default function MissionSetup(props: MissionSetupProps) {
           content: "Nothing",
           weather: "Normal",
           momentum: MOMENTUM_DEFAULT,
+          hardTargets: [],
         },
       ],
     }));
