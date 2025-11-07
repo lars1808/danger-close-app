@@ -152,7 +152,7 @@ export default function App() {
           ♻
         </button>
 
-        <h1 className="dc-title">Danger Close – Squad Tracker v0</h1>
+        <h1 className="dc-title">DANGER CLOSE OPCON</h1>
         <div className="dc-subtle-rule" />
 
         {/* TAB NAVIGATION */}
