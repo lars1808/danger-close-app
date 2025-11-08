@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as T from "../squad/types";
 import { getStoredSquadName } from "../squad/storageKeys";
 import {
@@ -93,6 +93,32 @@ interface MissionSetupProps {
   onCurrentSectorChange: (sectorId: string | null) => void;
   onAdvanceToEngagement: (sectorId: string) => void;
   onAddLog: (text: string, source: T.LogSource) => void;
+}
+
+function buildAirDeployScript(
+  squadName: string,
+  missionName: string,
+  airspace: T.Airspace,
+): string[] {
+  const uppercaseSquadName = squadName.toUpperCase();
+  const uppercaseMissionName = missionName.toUpperCase();
+
+  if (airspace === "Clear") {
+    return [
+      `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
+      "AIRSPACE STATUS: CLEAR...",
+      "TRANSPORT PROCEEDING SAFELY TO LZ...",
+      `MISSION ${uppercaseMissionName} ACTIVE`,
+      "[PROCEED]",
+    ];
+  }
+
+  return [
+    `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
+    `AIRSPACE STATUS: ${airspace.toUpperCase()}...`,
+    `MISSION ${uppercaseMissionName} ACTIVE`,
+    "[PROCEED]",
+  ];
 }
 
 function generateSectorId(): string {
@@ -261,16 +287,160 @@ export default function MissionSetup(props: MissionSetupProps) {
   const [dragOverSectorId, setDragOverSectorId] = useState<string | null>(null);
   const [randomizingSectorId, setRandomizingSectorId] = useState<string | null>(null);
   const randomizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isAirDeployPanelOpen, setIsAirDeployPanelOpen] = useState(false);
+  const [airDeployLines, setAirDeployLines] = useState<string[]>([]);
+  const [airDeployCurrentLineIndex, setAirDeployCurrentLineIndex] = useState(0);
+  const [airDeployCurrentText, setAirDeployCurrentText] = useState("");
+  const [airDeployCompletedLines, setAirDeployCompletedLines] = useState<string[]>([]);
+  const airDeployTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const airDeployLineDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const airDeployProceedButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const isMissionLocked = mission.status === "active";
+
+  const clearAirDeployTimers = useCallback(() => {
+    if (airDeployTypingTimeoutRef.current) {
+      clearTimeout(airDeployTypingTimeoutRef.current);
+      airDeployTypingTimeoutRef.current = null;
+    }
+
+    if (airDeployLineDelayTimeoutRef.current) {
+      clearTimeout(airDeployLineDelayTimeoutRef.current);
+      airDeployLineDelayTimeoutRef.current = null;
+    }
+  }, []);
+
+  const resetAirDeployPanelState = useCallback(() => {
+    clearAirDeployTimers();
+    setAirDeployLines([]);
+    setAirDeployCompletedLines([]);
+    setAirDeployCurrentLineIndex(0);
+    setAirDeployCurrentText("");
+  }, [clearAirDeployTimers]);
+
+  const handleCloseAirDeployPanel = useCallback(() => {
+    setIsAirDeployPanelOpen(false);
+    resetAirDeployPanelState();
+  }, [resetAirDeployPanelState]);
 
   useEffect(() => {
     return () => {
       if (randomizeTimeoutRef.current) {
         clearTimeout(randomizeTimeoutRef.current);
       }
+
+      clearAirDeployTimers();
     };
-  }, []);
+  }, [clearAirDeployTimers]);
+
+  useEffect(() => {
+    if (!isAirDeployPanelOpen) {
+      return;
+    }
+
+    const currentLine = airDeployLines[airDeployCurrentLineIndex];
+
+    if (!currentLine) {
+      return;
+    }
+
+    if (airDeployCurrentText.length < currentLine.length) {
+      airDeployTypingTimeoutRef.current = window.setTimeout(() => {
+        setAirDeployCurrentText((prev) => prev + currentLine.charAt(prev.length));
+      }, 40);
+    }
+
+    return () => {
+      if (airDeployTypingTimeoutRef.current) {
+        clearTimeout(airDeployTypingTimeoutRef.current);
+        airDeployTypingTimeoutRef.current = null;
+      }
+    };
+  }, [
+    airDeployLines,
+    airDeployCurrentLineIndex,
+    airDeployCurrentText,
+    isAirDeployPanelOpen,
+  ]);
+
+  useEffect(() => {
+    if (!isAirDeployPanelOpen) {
+      return;
+    }
+
+    const currentLine = airDeployLines[airDeployCurrentLineIndex];
+
+    if (!currentLine) {
+      return;
+    }
+
+    const lineCompleted = airDeployCurrentText.length === currentLine.length;
+
+    if (!lineCompleted) {
+      return;
+    }
+
+    if (airDeployCompletedLines.length === airDeployCurrentLineIndex) {
+      setAirDeployCompletedLines((prev) => [...prev, currentLine]);
+    }
+
+    if (
+      airDeployCurrentLineIndex < airDeployLines.length - 1 &&
+      airDeployCompletedLines.length === airDeployCurrentLineIndex + 1 &&
+      !airDeployLineDelayTimeoutRef.current
+    ) {
+      airDeployLineDelayTimeoutRef.current = window.setTimeout(() => {
+        airDeployLineDelayTimeoutRef.current = null;
+        setAirDeployCurrentLineIndex((prev) => prev + 1);
+        setAirDeployCurrentText("");
+      }, 650);
+    }
+
+    return () => {
+      if (airDeployLineDelayTimeoutRef.current) {
+        clearTimeout(airDeployLineDelayTimeoutRef.current);
+        airDeployLineDelayTimeoutRef.current = null;
+      }
+    };
+  }, [
+    airDeployLines,
+    airDeployCurrentLineIndex,
+    airDeployCurrentText,
+    airDeployCompletedLines.length,
+    isAirDeployPanelOpen,
+  ]);
+
+  const hasFinishedAirDeployScript =
+    isAirDeployPanelOpen &&
+    airDeployLines.length > 0 &&
+    airDeployCompletedLines.length === airDeployLines.length;
+
+  useEffect(() => {
+    if (!hasFinishedAirDeployScript) {
+      return;
+    }
+
+    airDeployProceedButtonRef.current?.focus();
+  }, [hasFinishedAirDeployScript]);
+
+  useEffect(() => {
+    if (!isAirDeployPanelOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleCloseAirDeployPanel();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleCloseAirDeployPanel, isAirDeployPanelOpen]);
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
     onMissionChange((prev) => ({ ...prev, name: e.target.value }));
@@ -328,28 +498,59 @@ export default function MissionSetup(props: MissionSetupProps) {
     onAddLog("Mission parameters randomized", "SYSTEM");
   }
 
-  function handleDeploySquad() {
-    if (!mission.name.trim()) {
-      return;
+  function finalizeMissionDeployment() {
+    const trimmedName = mission.name.trim();
+    if (!trimmedName) {
+      return null;
     }
 
+    const trimmedObjective = mission.objective.trim();
+    const trimmedBriefing = mission.briefing.trim();
     const storedSquadName = getStoredSquadName().trim();
     const squadName = storedSquadName || "Unnamed Squad";
-    const missionName = mission.name.trim();
-    const missionObjective = mission.objective.trim() || "Objective Pending";
+    const missionObjective = trimmedObjective || "Objective Pending";
     const { difficulty, airspace } = mission;
 
     onMissionChange((prev) => ({
       ...prev,
-      name: prev.name.trim(),
-      objective: prev.objective.trim(),
-      briefing: prev.briefing.trim(),
+      name: trimmedName,
+      objective: trimmedObjective,
+      briefing: trimmedBriefing,
       status: "active",
       startTime: prev.startTime ?? Date.now(),
     }));
 
-    const logMessage = `${squadName} ACTIVE ++ ${missionName} ++ ${missionObjective} ++ DIFFICULTY: ${difficulty} ++ AIRSPACE: ${airspace}`;
+    const logMessage = `${squadName} ACTIVE ++ ${trimmedName} ++ ${missionObjective} ++ DIFFICULTY: ${difficulty} ++ AIRSPACE: ${airspace}`;
     onAddLog(logMessage, "SYSTEM");
+
+    return {
+      squadName,
+      missionName: trimmedName,
+      airspace,
+    };
+  }
+
+  function handleDeploySquad() {
+    finalizeMissionDeployment();
+  }
+
+  function handleDeployByAir() {
+    const deployment = finalizeMissionDeployment();
+
+    if (!deployment) {
+      return;
+    }
+
+    resetAirDeployPanelState();
+
+    const script = buildAirDeployScript(
+      deployment.squadName,
+      deployment.missionName,
+      deployment.airspace,
+    );
+
+    setAirDeployLines(script);
+    setIsAirDeployPanelOpen(true);
   }
 
   function handleAddSector() {
@@ -601,6 +802,53 @@ export default function MissionSetup(props: MissionSetupProps) {
 
   return (
     <div className="dc-mission-setup">
+      {isAirDeployPanelOpen && (
+        <div
+          className="dc-airdeploy-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Aerial deployment status"
+        >
+          <div className="dc-airdeploy-panel" role="document">
+            <div className="dc-airdeploy-output" aria-live="polite">
+              {airDeployCompletedLines.map((line, index) => {
+                const isLastLine = index === airDeployLines.length - 1;
+
+                if (isLastLine && line === "[PROCEED]" && hasFinishedAirDeployScript) {
+                  return (
+                    <p key={index} className="dc-airdeploy-line">
+                      [
+                      <button
+                        type="button"
+                        className="dc-airdeploy-proceed-btn"
+                        onClick={handleCloseAirDeployPanel}
+                        ref={airDeployProceedButtonRef}
+                      >
+                        PROCEED
+                      </button>
+                      ]
+                    </p>
+                  );
+                }
+
+                return (
+                  <p key={index} className="dc-airdeploy-line">
+                    {line}
+                  </p>
+                );
+              })}
+              {!hasFinishedAirDeployScript && (
+                <p className="dc-airdeploy-line">
+                  {airDeployCurrentText}
+                  <span className="dc-airdeploy-cursor" aria-hidden="true">
+                    ▌
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {isMissionLocked ? (
         <>
           <div className="dc-mission-summary" aria-live="polite">
@@ -888,6 +1136,14 @@ export default function MissionSetup(props: MissionSetupProps) {
               onClick={handleRandomize}
             >
               RANDOMIZE
+            </button>
+            <button
+              type="button"
+              className="dc-btn dc-mission-btn dc-mission-btn--deploy"
+              onClick={handleDeployByAir}
+              disabled={deployDisabled}
+            >
+              DEPLOY BY AIR
             </button>
             <button
               type="button"
