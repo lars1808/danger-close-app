@@ -882,6 +882,93 @@ h1, h2, h3 {
   gap: 8px;
 }
 
+.dc-hard-targets-card {
+  gap: 14px;
+}
+
+.dc-hard-targets-add {
+  min-width: 32px;
+}
+
+.dc-hard-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-hard-targets-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dc-hard-targets-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-hard-target {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dc-hard-target-name-input {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.dc-hard-target-hits {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dc-hard-target-hits-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dc-hard-target-hits-input {
+  width: 70px;
+  text-align: center;
+}
+
+.dc-hard-target-hits-btn {
+  min-width: 32px;
+}
+
+.dc-hard-target-delete {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.dc-hard-target-delete:hover {
+  color: var(--text);
+}
+
+.dc-hard-target.is-neutralized .dc-hard-target-name-input {
+  color: var(--bleeding);
+  text-decoration: line-through;
+}
+
 .dc-momentum-defense-toggle {
   display: inline-flex;
   align-items: center;

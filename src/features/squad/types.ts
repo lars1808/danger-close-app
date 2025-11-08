@@ -234,6 +234,7 @@ export interface MissionSector {
   content: MissionContent;
   weather: MissionWeather;
   momentum: number;
+  hardTargets: HardTarget[];
 }
 
 export interface Mission {
@@ -246,6 +247,12 @@ export interface Mission {
   status: 'planning' | 'active' | 'complete';
   startTime?: number;
   sectors: MissionSector[];
+}
+
+export interface HardTarget {
+  id: string;
+  name: string;
+  hits: number;
 }
 
 // ===== LOG ENTRIES =====
