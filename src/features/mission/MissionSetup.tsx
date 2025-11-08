@@ -324,6 +324,27 @@ function isMissionStatus(value: unknown): value is T.Mission["status"] {
   return typeof value === "string" && MISSION_STATUS_OPTIONS.includes(value as T.Mission["status"]);
 }
 
+function normalizeHardTarget(target: unknown, index: number): T.HardTarget {
+  if (!target || typeof target !== "object") {
+    return {
+      id: `hard-target-${index}-${generateSectorId()}`,
+      name: "",
+      hits: 3,
+    };
+  }
+
+  const rawTarget = target as Partial<T.HardTarget>;
+  const id =
+    typeof rawTarget.id === "string" && rawTarget.id.trim()
+      ? rawTarget.id
+      : `legacy-hard-target-${index}-${generateSectorId()}`;
+  const name = typeof rawTarget.name === "string" ? rawTarget.name : "";
+  const hitsValue = Number((rawTarget.hits as number | string | undefined) ?? 3);
+  const hits = Number.isFinite(hitsValue) ? Math.max(0, Math.round(hitsValue)) : 3;
+
+  return { id, name, hits };
+}
+
 function normalizeSector(sector: unknown, index: number): T.MissionSector {
   if (!sector || typeof sector !== "object") {
     return {
@@ -334,10 +355,12 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       content: "Nothing",
       weather: "Normal",
       momentum: MOMENTUM_DEFAULT,
+      hardTargets: [],
     };
   }
 
   const rawSector = sector as Partial<T.MissionSector>;
+  const rawHardTargets = Array.isArray(rawSector.hardTargets) ? rawSector.hardTargets : [];
 
   return {
     id:
@@ -352,6 +375,9 @@ function normalizeSector(sector: unknown, index: number): T.MissionSector {
       ? (rawSector.weather as T.MissionWeather)
       : "Normal",
     momentum: clampMomentum(rawSector.momentum),
+    hardTargets: rawHardTargets.map((target, targetIndex) =>
+      normalizeHardTarget(target, targetIndex),
+    ),
   };
 }
 
@@ -752,6 +778,7 @@ export default function MissionSetup(props: MissionSetupProps) {
           content: "Nothing",
           weather: "Normal",
           momentum: MOMENTUM_DEFAULT,
+          hardTargets: [],
         },
       ],
     }));
