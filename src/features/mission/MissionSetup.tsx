@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as T from "../squad/types";
-import { getStoredSquadName } from "../squad/storageKeys";
+import {
+  getStoredSquadName,
+  getStoredSquad,
+  SQUAD_STORAGE_KEY,
+  SQUAD_UPDATED_EVENT,
+} from "../squad/storageKeys";
 import {
   getSectorDisplayName,
   isThreatContent,
@@ -95,30 +100,196 @@ interface MissionSetupProps {
   onAddLog: (text: string, source: T.LogSource) => void;
 }
 
+interface AirDeployResult {
+  lines: string[];
+  logMessage: string;
+  updatedSquad: Partial<T.Trooper>[] | null;
+}
+
+interface CrashInjuryResult {
+  statusLines: string[];
+  updatedSquad: Partial<T.Trooper>[] | null;
+  injuredTroopers: Array<{
+    name: string;
+    previousStatus: T.Status;
+    newStatus: T.Status;
+  }>;
+}
+
+function isTrooperStatus(value: unknown): value is T.Status {
+  return typeof value === "string" && T.STATUS_ORDER.includes(value as T.Status);
+}
+
+function advanceStatus(status: T.Status): T.Status {
+  const currentIndex = T.STATUS_ORDER.indexOf(status);
+  if (currentIndex === -1) {
+    return "Grazed";
+  }
+
+  const nextIndex = Math.min(T.STATUS_ORDER.length - 1, currentIndex + 1);
+  return T.STATUS_ORDER[nextIndex];
+}
+
+function resolveCrashInjuries(storedSquad: Partial<T.Trooper>[]): CrashInjuryResult {
+  const sanitizedRoster = storedSquad.map((entry, index) => {
+    if (!entry || typeof entry !== "object") {
+      return {
+        index,
+        name: `Trooper ${index + 1}`,
+        status: "OK" as T.Status,
+      };
+    }
+
+    const record = entry as Partial<T.Trooper>;
+    const id =
+      typeof record.id === "number" && Number.isFinite(record.id)
+        ? Math.trunc(record.id)
+        : index + 1;
+    const rawName = typeof record.name === "string" ? record.name.trim() : "";
+    const name = rawName || `Trooper ${id}`;
+    const status = isTrooperStatus(record.status) ? (record.status as T.Status) : "OK";
+
+    return { index, name, status };
+  });
+
+  if (sanitizedRoster.length === 0) {
+    return {
+      statusLines: ["TROOPER STATUS:", "NO TROOPER RECORDS FOUND."],
+      updatedSquad: null,
+      injuredTroopers: [],
+    };
+  }
+
+  const updatedSquad = storedSquad.map((entry) =>
+    entry && typeof entry === "object" ? { ...(entry as Partial<T.Trooper>) } : entry,
+  ) as Partial<T.Trooper>[];
+
+  const injuredTroopers: CrashInjuryResult["injuredTroopers"] = [];
+  let hasChanges = false;
+
+  sanitizedRoster.forEach(({ index, status, name }) => {
+    if (rollD6() > 2) {
+      return;
+    }
+
+    const nextStatus = advanceStatus(status);
+
+    if (nextStatus !== status) {
+      injuredTroopers.push({ name, previousStatus: status, newStatus: nextStatus });
+      hasChanges = true;
+    }
+
+    const target = updatedSquad[index];
+    if (target && typeof target === "object") {
+      (target as Partial<T.Trooper>).status = nextStatus;
+    } else {
+      updatedSquad[index] = { status: nextStatus } as Partial<T.Trooper>;
+    }
+  });
+
+  const statusLines = ["TROOPER STATUS:"];
+
+  if (injuredTroopers.length > 0) {
+    injuredTroopers.forEach(({ name }) => {
+      statusLines.push(`${name.toUpperCase()} INJURED IN LANDING`);
+    });
+  } else {
+    statusLines.push("NO INJURIES REPORTED.");
+  }
+
+  return {
+    statusLines,
+    updatedSquad: hasChanges ? updatedSquad : null,
+    injuredTroopers,
+  };
+}
+
 function buildAirDeployScript(
   squadName: string,
   missionName: string,
   airspace: T.Airspace,
-): string[] {
+  storedSquad: Partial<T.Trooper>[],
+): AirDeployResult {
   const uppercaseSquadName = squadName.toUpperCase();
   const uppercaseMissionName = missionName.toUpperCase();
+  const missionActiveLine = `MISSION ${uppercaseMissionName} ACTIVE`;
 
   if (airspace === "Clear") {
-    return [
-      `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
-      "AIRSPACE STATUS: CLEAR...",
-      "TRANSPORT PROCEEDING SAFELY TO LZ...",
-      `MISSION ${uppercaseMissionName} ACTIVE`,
-      "[PROCEED]",
-    ];
+    return {
+      lines: [
+        `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
+        "AIRSPACE STATUS: CLEAR...",
+        "TRANSPORT PROCEEDING SAFELY TO LZ...",
+        missionActiveLine,
+        "[PROCEED]",
+      ],
+      logMessage: `${squadName} completed an aerial insertion under clear airspace. Mission ${missionName} active.`,
+      updatedSquad: null,
+    };
   }
 
-  return [
+  const lines = [
     `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
     `AIRSPACE STATUS: ${airspace.toUpperCase()}...`,
-    `MISSION ${uppercaseMissionName} ACTIVE`,
-    "[PROCEED]",
+    "EVASIVE MANEUVERS...",
   ];
+
+  const fireThreshold = airspace === "Contested" ? 2 : 4;
+  const tookFire = rollD6() <= fireThreshold;
+
+  if (!tookFire) {
+    lines.push("TRANSPORT PROCEEDING SAFELY TO LZ...");
+    lines.push(missionActiveLine);
+    lines.push("[PROCEED]");
+
+    return {
+      lines,
+      logMessage: `${squadName} inserted by air through ${airspace.toLowerCase()} airspace without incident. Mission ${missionName} active.`,
+      updatedSquad: null,
+    };
+  }
+
+  lines.push("TRANSPORT TAKING FIRE...");
+
+  const transportDown = rollD6() <= 3;
+
+  if (!transportDown) {
+    lines.push("TRANSPORT PROCEEDING SAFELY TO LZ...");
+    lines.push(missionActiveLine);
+    lines.push("[PROCEED]");
+
+    return {
+      lines,
+      logMessage: `${squadName} insertion under ${airspace.toLowerCase()} airspace took fire but transport reached the LZ intact. Mission ${missionName} active.`,
+      updatedSquad: null,
+    };
+  }
+
+  lines.push("ALERT: MAYDAY");
+  lines.push("ENGINES HIT");
+  lines.push("BRACE FOR IMPACT");
+  lines.push("TRANSPORT DOWN");
+
+  const crashResult = resolveCrashInjuries(storedSquad);
+  lines.push(...crashResult.statusLines);
+
+  const crashDistance = Math.floor(Math.random() * 3) + 1;
+  lines.push(`CRASH SITE ${crashDistance} SECTORS FROM INTENDED LZ`);
+  lines.push(missionActiveLine);
+  lines.push("[PROCEED]");
+
+  const injuredNames = crashResult.injuredTroopers.map(({ name }) => name);
+  const injuriesSummary =
+    injuredNames.length > 0
+      ? `Injured: ${injuredNames.join(", ")}.`
+      : "No additional injuries reported.";
+  const sectorLabel = crashDistance === 1 ? "sector" : "sectors";
+
+  return {
+    lines,
+    logMessage: `${squadName} air insertion compromised - transport down ${crashDistance} ${sectorLabel} from LZ. ${injuriesSummary} Mission ${missionName} active.`,
+    updatedSquad: crashResult.updatedSquad,
+  };
 }
 
 function generateSectorId(): string {
@@ -543,13 +714,28 @@ export default function MissionSetup(props: MissionSetupProps) {
 
     resetAirDeployPanelState();
 
-    const script = buildAirDeployScript(
+    const storedSquad = getStoredSquad();
+    const result = buildAirDeployScript(
       deployment.squadName,
       deployment.missionName,
       deployment.airspace,
+      storedSquad,
     );
 
-    setAirDeployLines(script);
+    if (result.updatedSquad) {
+      try {
+        localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(result.updatedSquad));
+        window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
+      } catch (error) {
+        console.error("Failed to update squad status after air deployment", error);
+      }
+    }
+
+    if (result.logMessage.trim()) {
+      onAddLog(result.logMessage, "SYSTEM");
+    }
+
+    setAirDeployLines(result.lines);
     setIsAirDeployPanelOpen(true);
   }
 
