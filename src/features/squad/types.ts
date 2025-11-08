@@ -226,6 +226,12 @@ export type MissionSpace = 'Tight' | 'Transitional' | 'Open';
 export type MissionContent = 'Boon' | 'Nothing' | 'TL 1' | 'TL 2' | 'TL 3' | 'TL 4';
 export type MissionWeather = 'Normal' | 'Bad' | 'Terrible';
 
+export interface MissionHardTarget {
+  id: string;
+  name: string;
+  hits: number;
+}
+
 export interface MissionSector {
   id: string;
   name: string;
@@ -234,6 +240,7 @@ export interface MissionSector {
   content: MissionContent;
   weather: MissionWeather;
   momentum: number;
+  hardTargets: MissionHardTarget[];
 }
 
 export interface Mission {

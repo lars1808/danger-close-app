@@ -111,7 +111,7 @@ function createInventoryItemId(): string {
   if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
     try {
       return globalCrypto.randomUUID();
-    } catch (error) {
+    } catch {
       // Fall through to time-based ID
     }
   }
@@ -129,7 +129,7 @@ function loadInitialSquadState(): InitialSquadState {
   let rawSquad: unknown = null;
   try {
     rawSquad = localStorage.getItem(SQUAD_STORAGE_KEY);
-  } catch (error) {
+  } catch {
     rawSquad = null;
   }
 
@@ -138,7 +138,7 @@ function loadInitialSquadState(): InitialSquadState {
     try {
       const parsed = JSON.parse(rawSquad);
       parsedSquad = Array.isArray(parsed) ? (parsed as Partial<T.Trooper>[]) : null;
-    } catch (error) {
+    } catch {
       parsedSquad = null;
     }
   }
