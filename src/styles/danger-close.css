@@ -3109,6 +3109,85 @@ input[type="checkbox"]:hover {
   cursor: not-allowed;
 }
 
+/* ==================== AIR DEPLOY PANEL ==================== */
+.dc-airdeploy-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 48px);
+  background: rgba(3, 5, 8, 0.78);
+  backdrop-filter: blur(4px);
+  z-index: 1400;
+}
+
+.dc-airdeploy-panel {
+  width: min(620px, 96vw);
+  background: linear-gradient(180deg, rgba(8, 12, 18, 0.96), rgba(4, 6, 10, 0.94));
+  border: 1px solid rgba(93, 166, 255, 0.25);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45), 0 0 32px rgba(53, 176, 255, 0.08);
+  padding: clamp(20px, 4vw, 36px);
+  color: var(--text);
+  font-family: var(--font-mono);
+  border-radius: 14px;
+}
+
+.dc-airdeploy-output {
+  min-height: 8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: clamp(0.95rem, 2.4vw, 1.15rem);
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+}
+
+.dc-airdeploy-line {
+  margin: 0;
+  color: var(--text);
+  text-transform: uppercase;
+  white-space: pre-wrap;
+}
+
+.dc-airdeploy-cursor {
+  display: inline-block;
+  margin-left: 0.1em;
+  width: 0.6em;
+  animation: dcAirDeployCursorBlink 1s steps(2, start) infinite;
+}
+
+@keyframes dcAirDeployCursorBlink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.dc-airdeploy-proceed-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.dc-airdeploy-proceed-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.dc-airdeploy-proceed-btn:hover {
+  color: var(--focus);
+}
+
 /* ==================== INLINE EDITING ==================== */
 .dc-log-text {
   color: var(--text);

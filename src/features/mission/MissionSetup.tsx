@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as T from "../squad/types";
-import { getStoredSquadName } from "../squad/storageKeys";
+import {
+  getStoredSquadName,
+  getStoredSquad,
+  SQUAD_STORAGE_KEY,
+  SQUAD_UPDATED_EVENT,
+} from "../squad/storageKeys";
 import {
   getSectorDisplayName,
   isThreatContent,
@@ -93,6 +98,198 @@ interface MissionSetupProps {
   onCurrentSectorChange: (sectorId: string | null) => void;
   onAdvanceToEngagement: (sectorId: string) => void;
   onAddLog: (text: string, source: T.LogSource) => void;
+}
+
+interface AirDeployResult {
+  lines: string[];
+  logMessage: string;
+  updatedSquad: Partial<T.Trooper>[] | null;
+}
+
+interface CrashInjuryResult {
+  statusLines: string[];
+  updatedSquad: Partial<T.Trooper>[] | null;
+  injuredTroopers: Array<{
+    name: string;
+    previousStatus: T.Status;
+    newStatus: T.Status;
+  }>;
+}
+
+function isTrooperStatus(value: unknown): value is T.Status {
+  return typeof value === "string" && T.STATUS_ORDER.includes(value as T.Status);
+}
+
+function advanceStatus(status: T.Status): T.Status {
+  const currentIndex = T.STATUS_ORDER.indexOf(status);
+  if (currentIndex === -1) {
+    return "Grazed";
+  }
+
+  const nextIndex = Math.min(T.STATUS_ORDER.length - 1, currentIndex + 1);
+  return T.STATUS_ORDER[nextIndex];
+}
+
+function resolveCrashInjuries(storedSquad: Partial<T.Trooper>[]): CrashInjuryResult {
+  const sanitizedRoster = storedSquad.map((entry, index) => {
+    if (!entry || typeof entry !== "object") {
+      return {
+        index,
+        name: `Trooper ${index + 1}`,
+        status: "OK" as T.Status,
+      };
+    }
+
+    const record = entry as Partial<T.Trooper>;
+    const id =
+      typeof record.id === "number" && Number.isFinite(record.id)
+        ? Math.trunc(record.id)
+        : index + 1;
+    const rawName = typeof record.name === "string" ? record.name.trim() : "";
+    const name = rawName || `Trooper ${id}`;
+    const status = isTrooperStatus(record.status) ? (record.status as T.Status) : "OK";
+
+    return { index, name, status };
+  });
+
+  if (sanitizedRoster.length === 0) {
+    return {
+      statusLines: ["TROOPER STATUS:", "NO TROOPER RECORDS FOUND."],
+      updatedSquad: null,
+      injuredTroopers: [],
+    };
+  }
+
+  const updatedSquad = storedSquad.map((entry) =>
+    entry && typeof entry === "object" ? { ...(entry as Partial<T.Trooper>) } : entry,
+  ) as Partial<T.Trooper>[];
+
+  const injuredTroopers: CrashInjuryResult["injuredTroopers"] = [];
+  let hasChanges = false;
+
+  sanitizedRoster.forEach(({ index, status, name }) => {
+    if (rollD6() > 2) {
+      return;
+    }
+
+    const nextStatus = advanceStatus(status);
+
+    if (nextStatus !== status) {
+      injuredTroopers.push({ name, previousStatus: status, newStatus: nextStatus });
+      hasChanges = true;
+    }
+
+    const target = updatedSquad[index];
+    if (target && typeof target === "object") {
+      (target as Partial<T.Trooper>).status = nextStatus;
+    } else {
+      updatedSquad[index] = { status: nextStatus } as Partial<T.Trooper>;
+    }
+  });
+
+  const statusLines = ["TROOPER STATUS:"];
+
+  if (injuredTroopers.length > 0) {
+    injuredTroopers.forEach(({ name }) => {
+      statusLines.push(`${name.toUpperCase()} INJURED IN LANDING`);
+    });
+  } else {
+    statusLines.push("NO INJURIES REPORTED.");
+  }
+
+  return {
+    statusLines,
+    updatedSquad: hasChanges ? updatedSquad : null,
+    injuredTroopers,
+  };
+}
+
+function buildAirDeployScript(
+  squadName: string,
+  missionName: string,
+  airspace: T.Airspace,
+  storedSquad: Partial<T.Trooper>[],
+): AirDeployResult {
+  const uppercaseSquadName = squadName.toUpperCase();
+  const uppercaseMissionName = missionName.toUpperCase();
+  const missionActiveLine = `MISSION ${uppercaseMissionName} ACTIVE`;
+
+  if (airspace === "Clear") {
+    return {
+      lines: [
+        `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
+        "AIRSPACE STATUS: CLEAR...",
+        "TRANSPORT PROCEEDING SAFELY TO LZ...",
+        missionActiveLine,
+        "[PROCEED]",
+      ],
+      logMessage: `${squadName} completed an aerial insertion under clear airspace. Mission ${missionName} active.`,
+      updatedSquad: null,
+    };
+  }
+
+  const lines = [
+    `${uppercaseSquadName} EMBARKING ON AERIAL TRANSPORT...`,
+    `AIRSPACE STATUS: ${airspace.toUpperCase()}...`,
+    "EVASIVE MANEUVERS...",
+  ];
+
+  const fireThreshold = airspace === "Contested" ? 2 : 4;
+  const tookFire = rollD6() <= fireThreshold;
+
+  if (!tookFire) {
+    lines.push("TRANSPORT PROCEEDING SAFELY TO LZ...");
+    lines.push(missionActiveLine);
+    lines.push("[PROCEED]");
+
+    return {
+      lines,
+      logMessage: `${squadName} inserted by air through ${airspace.toLowerCase()} airspace without incident. Mission ${missionName} active.`,
+      updatedSquad: null,
+    };
+  }
+
+  lines.push("TRANSPORT TAKING FIRE...");
+
+  const transportDown = rollD6() <= 3;
+
+  if (!transportDown) {
+    lines.push("TRANSPORT PROCEEDING SAFELY TO LZ...");
+    lines.push(missionActiveLine);
+    lines.push("[PROCEED]");
+
+    return {
+      lines,
+      logMessage: `${squadName} insertion under ${airspace.toLowerCase()} airspace took fire but transport reached the LZ intact. Mission ${missionName} active.`,
+      updatedSquad: null,
+    };
+  }
+
+  lines.push("ALERT: MAYDAY");
+  lines.push("ENGINES HIT");
+  lines.push("BRACE FOR IMPACT");
+  lines.push("TRANSPORT DOWN");
+
+  const crashResult = resolveCrashInjuries(storedSquad);
+  lines.push(...crashResult.statusLines);
+
+  const crashDistance = Math.floor(Math.random() * 3) + 1;
+  lines.push(`CRASH SITE ${crashDistance} SECTORS FROM INTENDED LZ`);
+  lines.push(missionActiveLine);
+  lines.push("[PROCEED]");
+
+  const injuredNames = crashResult.injuredTroopers.map(({ name }) => name);
+  const injuriesSummary =
+    injuredNames.length > 0
+      ? `Injured: ${injuredNames.join(", ")}.`
+      : "No additional injuries reported.";
+  const sectorLabel = crashDistance === 1 ? "sector" : "sectors";
+
+  return {
+    lines,
+    logMessage: `${squadName} air insertion compromised - transport down ${crashDistance} ${sectorLabel} from LZ. ${injuriesSummary} Mission ${missionName} active.`,
+    updatedSquad: crashResult.updatedSquad,
+  };
 }
 
 function generateSectorId(): string {
@@ -261,16 +458,160 @@ export default function MissionSetup(props: MissionSetupProps) {
   const [dragOverSectorId, setDragOverSectorId] = useState<string | null>(null);
   const [randomizingSectorId, setRandomizingSectorId] = useState<string | null>(null);
   const randomizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isAirDeployPanelOpen, setIsAirDeployPanelOpen] = useState(false);
+  const [airDeployLines, setAirDeployLines] = useState<string[]>([]);
+  const [airDeployCurrentLineIndex, setAirDeployCurrentLineIndex] = useState(0);
+  const [airDeployCurrentText, setAirDeployCurrentText] = useState("");
+  const [airDeployCompletedLines, setAirDeployCompletedLines] = useState<string[]>([]);
+  const airDeployTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const airDeployLineDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const airDeployProceedButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const isMissionLocked = mission.status === "active";
+
+  const clearAirDeployTimers = useCallback(() => {
+    if (airDeployTypingTimeoutRef.current) {
+      clearTimeout(airDeployTypingTimeoutRef.current);
+      airDeployTypingTimeoutRef.current = null;
+    }
+
+    if (airDeployLineDelayTimeoutRef.current) {
+      clearTimeout(airDeployLineDelayTimeoutRef.current);
+      airDeployLineDelayTimeoutRef.current = null;
+    }
+  }, []);
+
+  const resetAirDeployPanelState = useCallback(() => {
+    clearAirDeployTimers();
+    setAirDeployLines([]);
+    setAirDeployCompletedLines([]);
+    setAirDeployCurrentLineIndex(0);
+    setAirDeployCurrentText("");
+  }, [clearAirDeployTimers]);
+
+  const handleCloseAirDeployPanel = useCallback(() => {
+    setIsAirDeployPanelOpen(false);
+    resetAirDeployPanelState();
+  }, [resetAirDeployPanelState]);
 
   useEffect(() => {
     return () => {
       if (randomizeTimeoutRef.current) {
         clearTimeout(randomizeTimeoutRef.current);
       }
+
+      clearAirDeployTimers();
     };
-  }, []);
+  }, [clearAirDeployTimers]);
+
+  useEffect(() => {
+    if (!isAirDeployPanelOpen) {
+      return;
+    }
+
+    const currentLine = airDeployLines[airDeployCurrentLineIndex];
+
+    if (!currentLine) {
+      return;
+    }
+
+    if (airDeployCurrentText.length < currentLine.length) {
+      airDeployTypingTimeoutRef.current = window.setTimeout(() => {
+        setAirDeployCurrentText((prev) => prev + currentLine.charAt(prev.length));
+      }, 40);
+    }
+
+    return () => {
+      if (airDeployTypingTimeoutRef.current) {
+        clearTimeout(airDeployTypingTimeoutRef.current);
+        airDeployTypingTimeoutRef.current = null;
+      }
+    };
+  }, [
+    airDeployLines,
+    airDeployCurrentLineIndex,
+    airDeployCurrentText,
+    isAirDeployPanelOpen,
+  ]);
+
+  useEffect(() => {
+    if (!isAirDeployPanelOpen) {
+      return;
+    }
+
+    const currentLine = airDeployLines[airDeployCurrentLineIndex];
+
+    if (!currentLine) {
+      return;
+    }
+
+    const lineCompleted = airDeployCurrentText.length === currentLine.length;
+
+    if (!lineCompleted) {
+      return;
+    }
+
+    if (airDeployCompletedLines.length === airDeployCurrentLineIndex) {
+      setAirDeployCompletedLines((prev) => [...prev, currentLine]);
+    }
+
+    if (
+      airDeployCurrentLineIndex < airDeployLines.length - 1 &&
+      airDeployCompletedLines.length === airDeployCurrentLineIndex + 1 &&
+      !airDeployLineDelayTimeoutRef.current
+    ) {
+      airDeployLineDelayTimeoutRef.current = window.setTimeout(() => {
+        airDeployLineDelayTimeoutRef.current = null;
+        setAirDeployCurrentLineIndex((prev) => prev + 1);
+        setAirDeployCurrentText("");
+      }, 650);
+    }
+
+    return () => {
+      if (airDeployLineDelayTimeoutRef.current) {
+        clearTimeout(airDeployLineDelayTimeoutRef.current);
+        airDeployLineDelayTimeoutRef.current = null;
+      }
+    };
+  }, [
+    airDeployLines,
+    airDeployCurrentLineIndex,
+    airDeployCurrentText,
+    airDeployCompletedLines.length,
+    isAirDeployPanelOpen,
+  ]);
+
+  const hasFinishedAirDeployScript =
+    isAirDeployPanelOpen &&
+    airDeployLines.length > 0 &&
+    airDeployCompletedLines.length === airDeployLines.length;
+
+  useEffect(() => {
+    if (!hasFinishedAirDeployScript) {
+      return;
+    }
+
+    airDeployProceedButtonRef.current?.focus();
+  }, [hasFinishedAirDeployScript]);
+
+  useEffect(() => {
+    if (!isAirDeployPanelOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleCloseAirDeployPanel();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleCloseAirDeployPanel, isAirDeployPanelOpen]);
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
     onMissionChange((prev) => ({ ...prev, name: e.target.value }));
@@ -328,28 +669,74 @@ export default function MissionSetup(props: MissionSetupProps) {
     onAddLog("Mission parameters randomized", "SYSTEM");
   }
 
-  function handleDeploySquad() {
-    if (!mission.name.trim()) {
-      return;
+  function finalizeMissionDeployment() {
+    const trimmedName = mission.name.trim();
+    if (!trimmedName) {
+      return null;
     }
 
+    const trimmedObjective = mission.objective.trim();
+    const trimmedBriefing = mission.briefing.trim();
     const storedSquadName = getStoredSquadName().trim();
     const squadName = storedSquadName || "Unnamed Squad";
-    const missionName = mission.name.trim();
-    const missionObjective = mission.objective.trim() || "Objective Pending";
+    const missionObjective = trimmedObjective || "Objective Pending";
     const { difficulty, airspace } = mission;
 
     onMissionChange((prev) => ({
       ...prev,
-      name: prev.name.trim(),
-      objective: prev.objective.trim(),
-      briefing: prev.briefing.trim(),
+      name: trimmedName,
+      objective: trimmedObjective,
+      briefing: trimmedBriefing,
       status: "active",
       startTime: prev.startTime ?? Date.now(),
     }));
 
-    const logMessage = `${squadName} ACTIVE ++ ${missionName} ++ ${missionObjective} ++ DIFFICULTY: ${difficulty} ++ AIRSPACE: ${airspace}`;
+    const logMessage = `${squadName} ACTIVE ++ ${trimmedName} ++ ${missionObjective} ++ DIFFICULTY: ${difficulty} ++ AIRSPACE: ${airspace}`;
     onAddLog(logMessage, "SYSTEM");
+
+    return {
+      squadName,
+      missionName: trimmedName,
+      airspace,
+    };
+  }
+
+  function handleDeploySquad() {
+    finalizeMissionDeployment();
+  }
+
+  function handleDeployByAir() {
+    const deployment = finalizeMissionDeployment();
+
+    if (!deployment) {
+      return;
+    }
+
+    resetAirDeployPanelState();
+
+    const storedSquad = getStoredSquad();
+    const result = buildAirDeployScript(
+      deployment.squadName,
+      deployment.missionName,
+      deployment.airspace,
+      storedSquad,
+    );
+
+    if (result.updatedSquad) {
+      try {
+        localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(result.updatedSquad));
+        window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
+      } catch (error) {
+        console.error("Failed to update squad status after air deployment", error);
+      }
+    }
+
+    if (result.logMessage.trim()) {
+      onAddLog(result.logMessage, "SYSTEM");
+    }
+
+    setAirDeployLines(result.lines);
+    setIsAirDeployPanelOpen(true);
   }
 
   function handleAddSector() {
@@ -601,6 +988,53 @@ export default function MissionSetup(props: MissionSetupProps) {
 
   return (
     <div className="dc-mission-setup">
+      {isAirDeployPanelOpen && (
+        <div
+          className="dc-airdeploy-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Aerial deployment status"
+        >
+          <div className="dc-airdeploy-panel" role="document">
+            <div className="dc-airdeploy-output" aria-live="polite">
+              {airDeployCompletedLines.map((line, index) => {
+                const isLastLine = index === airDeployLines.length - 1;
+
+                if (isLastLine && line === "[PROCEED]" && hasFinishedAirDeployScript) {
+                  return (
+                    <p key={index} className="dc-airdeploy-line">
+                      [
+                      <button
+                        type="button"
+                        className="dc-airdeploy-proceed-btn"
+                        onClick={handleCloseAirDeployPanel}
+                        ref={airDeployProceedButtonRef}
+                      >
+                        PROCEED
+                      </button>
+                      ]
+                    </p>
+                  );
+                }
+
+                return (
+                  <p key={index} className="dc-airdeploy-line">
+                    {line}
+                  </p>
+                );
+              })}
+              {!hasFinishedAirDeployScript && (
+                <p className="dc-airdeploy-line">
+                  {airDeployCurrentText}
+                  <span className="dc-airdeploy-cursor" aria-hidden="true">
+                    ▌
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {isMissionLocked ? (
         <>
           <div className="dc-mission-summary" aria-live="polite">
@@ -888,6 +1322,14 @@ export default function MissionSetup(props: MissionSetupProps) {
               onClick={handleRandomize}
             >
               RANDOMIZE
+            </button>
+            <button
+              type="button"
+              className="dc-btn dc-mission-btn dc-mission-btn--deploy"
+              onClick={handleDeployByAir}
+              disabled={deployDisabled}
+            >
+              DEPLOY BY AIR
             </button>
             <button
               type="button"
