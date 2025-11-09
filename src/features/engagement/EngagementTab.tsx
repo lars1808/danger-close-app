@@ -79,6 +79,7 @@ type PositionOption<TPosition> = {
   value: TPosition;
   tone: PositionTone;
   detail: string;
+  injuryThreshold?: number;
 };
 
 const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
@@ -88,9 +89,9 @@ const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
 ];
 
 const DEFENSIVE_POSITIONS: PositionOption<T.DefensivePosition>[] = [
-  { value: "Fortified", tone: "positive", detail: "Injury on 1" },
-  { value: "In Cover", tone: "caution", detail: "Injury on 1-2" },
-  { value: "Flanked", tone: "negative", detail: "Injury on 1-3" },
+  { value: "Fortified", tone: "positive", detail: "Injury on 1", injuryThreshold: 1 },
+  { value: "In Cover", tone: "caution", detail: "Injury on 1-2", injuryThreshold: 2 },
+  { value: "Flanked", tone: "negative", detail: "Injury on 1-3", injuryThreshold: 3 },
 ];
 
 type TacticTableEntry = {
@@ -1284,7 +1285,7 @@ export default function EngagementTab(props: EngagementTabProps) {
   const activeTrooperDefenses = React.useMemo(() => {
     const fallbackOption =
       DEFENSIVE_POSITIONS.find((option) => option.value === "In Cover") ??
-      ({ value: "In Cover", tone: "caution", detail: "Injury on 1-2" } as const);
+      ({ value: "In Cover", tone: "caution", detail: "Injury on 1-2", injuryThreshold: 2 } as const);
 
     return deployedSquad.map((trooper) => {
       const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
@@ -1293,18 +1294,65 @@ export default function EngagementTab(props: EngagementTabProps) {
         return {
           id: `trooper-${trooper.storageIndex}`,
           name: displayName,
-          detail: STATUS_DETAILS[trooper.status].label,
+          detail: (
+            <span className="dc-planning-intent-detail">{STATUS_DETAILS[trooper.status].label}</span>
+          ),
         };
       }
 
       const defensiveOption =
         DEFENSIVE_POSITIONS.find((option) => option.value === trooper.defensivePosition) ??
         fallbackOption;
+      const defensiveIndex = Math.max(
+        DEFENSIVE_POSITIONS.findIndex((option) => option.value === defensiveOption.value),
+        0,
+      );
+      const heavyArmorModifier = trooper.armorId === "heavy" ? -1 : 0;
+      const thresholds = DEFENSIVE_POSITIONS.map((option) => {
+        const threshold = (option.injuryThreshold ?? 0) + heavyArmorModifier;
+        return Math.max(threshold, 0);
+      });
+      const thresholdLabels = thresholds.map((threshold) => {
+        if (threshold <= 0) {
+          return "Fully shielded";
+        }
+        if (threshold === 1) {
+          return "Injury on 1";
+        }
+        return `Injury on ${threshold} or lower`;
+      });
 
       return {
         id: `trooper-${trooper.storageIndex}`,
         name: displayName,
-        detail: `${defensiveOption.value}: ${defensiveOption.detail}`,
+        detail: (
+          <div className="dc-planning-defense-detail">
+            <span className="dc-planning-defense-position">
+              {defensiveOption.value}
+              {trooper.armorId === "heavy" ? " + Heavy Armor" : ""}
+            </span>
+            <div className="dc-planning-defense-thresholds">
+              {thresholdLabels.map((label, index) => {
+                const thresholdClassName = [
+                  "dc-planning-defense-threshold",
+                  index === defensiveIndex ? " is-active" : "",
+                  thresholds[index] <= 0 ? " is-shielded" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                return (
+                  <span
+                    key={DEFENSIVE_POSITIONS[index]?.value ?? `threshold-${index}`}
+                    className={thresholdClassName}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ),
         appearance:
           defensiveOption.value === "Fortified"
             ? "fortified"
@@ -2268,16 +2316,20 @@ export default function EngagementTab(props: EngagementTabProps) {
                     {defenseThreatMessage ?? "Select a threat level sector to view defensive risks."}
                   </p>
                   <div className="dc-planning-intent">
-                    <ul className="dc-planning-intent-list">
+                    <ul className="dc-planning-intent-list dc-planning-defense-list">
                       {activeTrooperDefenses.map((defense) => {
-                        const defenseItemClassName = defense.appearance
-                          ? `dc-planning-intent-item dc-planning-defense-item--${defense.appearance}`
-                          : "dc-planning-intent-item";
+                        const defenseItemClassName = [
+                          "dc-planning-intent-item",
+                          "dc-planning-defense-item",
+                          defense.appearance ? `dc-planning-defense-item--${defense.appearance}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ");
 
                         return (
                           <li key={defense.id} className={defenseItemClassName}>
                             <span className="dc-planning-intent-name">{defense.name}</span>
-                            <span className="dc-planning-intent-detail">{defense.detail}</span>
+                            {defense.detail}
                           </li>
                         );
                       })}
