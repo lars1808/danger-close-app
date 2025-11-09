@@ -309,6 +309,23 @@ interface NormalizedTrooper {
   intent: T.TrooperIntent | null;
 }
 
+interface TrooperOffenseContribution {
+  trooperId: string;
+  name: string;
+  value: number;
+  detail: string;
+}
+
+function formatSignedValue(value: number): string {
+  if (value > 0) {
+    return `+${value}`;
+  }
+  if (value < 0) {
+    return `${value}`;
+  }
+  return "0";
+}
+
 export default function EngagementTab(props: EngagementTabProps) {
   const { mission, currentSectorId, onCurrentSectorChange, onMissionChange, onAddLog } = props;
 
@@ -1178,9 +1195,9 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const [activePlanningTab, setActivePlanningTab] = React.useState<PlanningTab>("intent");
 
-  const [offenseDiceBySector, setOffenseDiceBySector] = React.useState<Map<string, number>>(
-    () => new Map(),
-  );
+  const [offenseDiceBySector, setOffenseDiceBySector] = React.useState<
+    Map<string, { value: number; isManual: boolean }>
+  >(() => new Map());
 
   const [highlightedTacticId, setHighlightedTacticId] = React.useState<string | null>(null);
   const [isRollingTactic, setIsRollingTactic] = React.useState(false);
@@ -1308,8 +1325,6 @@ export default function EngagementTab(props: EngagementTabProps) {
     [deployedSquad],
   );
 
-  const availableTrooperCount = activeTroopers.length;
-
   const offensiveFlankingTroopers = React.useMemo(
     () =>
       activeTroopers
@@ -1356,6 +1371,97 @@ export default function EngagementTab(props: EngagementTabProps) {
     [defensiveFlankedTroopers, formatTrooperSummary],
   );
 
+  const sectorSpace = selectedSector?.space ?? null;
+
+  const offenseContributions = React.useMemo<TrooperOffenseContribution[]>(() => {
+    if (activeTroopers.length === 0) {
+      return [];
+    }
+
+    return activeTroopers.map((trooper) => {
+      const trooperId = `trooper-${trooper.storageIndex}`;
+      const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+      const assignedGearIds = new Set<string>();
+
+      trooper.specialGear.forEach((gearRef) => {
+        const inventoryItem = armoryIndex.get(gearRef);
+        if (inventoryItem) {
+          assignedGearIds.add(inventoryItem.gearId);
+        } else if (T.SPECIAL_GEAR_INDEX[gearRef]) {
+          assignedGearIds.add(gearRef);
+        }
+      });
+
+      if (trooper.intent !== "Fire") {
+        const detail =
+          trooper.intent === null
+            ? "No intent selected. Not firing."
+            : `Intent: ${trooper.intent}. Not firing.`;
+
+        return {
+          trooperId,
+          name: displayName,
+          value: 0,
+          detail,
+        };
+      }
+
+      let total = 1;
+      const detailParts = ["Fire (+1)"];
+
+      if (trooper.offensivePosition === "Flanking") {
+        total += 1;
+        detailParts.push("Flanking (+1)");
+      }
+
+      if (trooper.offensivePosition === "Limited") {
+        total -= 1;
+        detailParts.push("Limited (-1)");
+      }
+
+      if (
+        trooper.weaponId === "marksman_rifle" &&
+        trooper.offensivePosition === "Limited" &&
+        (sectorSpace === "Transitional" || sectorSpace === "Open")
+      ) {
+        total += 1;
+        detailParts.push("Marksman Rifle (+1)");
+      }
+
+      if (
+        trooper.weaponId === "carbine" &&
+        trooper.offensivePosition === "Engaged" &&
+        sectorSpace === "Tight"
+      ) {
+        total += 1;
+        detailParts.push("Carbine (+1)");
+      }
+
+      if (trooper.defensivePosition === "Fortified") {
+        if (assignedGearIds.has("sniper_rifle")) {
+          total += 1;
+          detailParts.push("Sniper Rifle (+1)");
+        }
+
+        if (assignedGearIds.has("hmg")) {
+          total += 1;
+          detailParts.push("HMG (+1)");
+        }
+      }
+
+      return {
+        trooperId,
+        name: displayName,
+        value: total,
+        detail: detailParts.join(", "),
+      };
+    });
+  }, [activeTroopers, armoryIndex, sectorSpace]);
+
+  const offenseComputedTotal = React.useMemo(() => {
+    return offenseContributions.reduce((sum, contribution) => sum + contribution.value, 0);
+  }, [offenseContributions]);
+
   const defenseThreatMessage = React.useMemo(() => {
     if (threatLevel === null) {
       return null;
@@ -1378,11 +1484,12 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const offenseDiceCount = React.useMemo(() => {
     if (!selectedSectorId) {
-      return availableTrooperCount;
+      return offenseComputedTotal;
     }
 
-    return offenseDiceBySector.get(selectedSectorId) ?? availableTrooperCount;
-  }, [availableTrooperCount, offenseDiceBySector, selectedSectorId]);
+    const entry = offenseDiceBySector.get(selectedSectorId);
+    return entry?.value ?? offenseComputedTotal;
+  }, [offenseComputedTotal, offenseDiceBySector, selectedSectorId]);
 
   const handlePlanningTabSelect = React.useCallback((tab: PlanningTab) => {
     setActivePlanningTab(tab);
@@ -1396,14 +1503,40 @@ export default function EngagementTab(props: EngagementTabProps) {
 
       setOffenseDiceBySector((prev) => {
         const next = new Map(prev);
-        const currentValue = next.get(selectedSectorId) ?? availableTrooperCount;
+        const existing = next.get(selectedSectorId);
+        const baseValue = offenseComputedTotal;
+        const currentValue = existing?.value ?? baseValue;
         const updatedValue = Math.max(0, currentValue + delta);
-        next.set(selectedSectorId, updatedValue);
+        next.set(selectedSectorId, {
+          value: updatedValue,
+          isManual: updatedValue !== offenseComputedTotal,
+        });
         return next;
       });
     },
-    [availableTrooperCount, selectedSectorId],
+    [offenseComputedTotal, selectedSectorId],
   );
+
+  React.useEffect(() => {
+    if (!selectedSectorId) {
+      return;
+    }
+
+    setOffenseDiceBySector((prev) => {
+      const existing = prev.get(selectedSectorId);
+      if (existing && !existing.isManual && existing.value === offenseComputedTotal) {
+        return prev;
+      }
+
+      if (!existing || existing.isManual || existing.value !== offenseComputedTotal) {
+        const next = new Map(prev);
+        next.set(selectedSectorId, { value: offenseComputedTotal, isManual: false });
+        return next;
+      }
+
+      return prev;
+    });
+  }, [offenseComputedTotal, selectedSectorId]);
 
   const offenseDiceLabel = React.useMemo(() => {
     return offenseDiceCount <= 0 ? "0d6" : `${offenseDiceCount}d6`;
@@ -1957,73 +2090,117 @@ export default function EngagementTab(props: EngagementTabProps) {
                     course of action during this Exchange.
                   </p>
                   <div className="dc-planning-intent">
-                    <ul className="dc-planning-intent-list">
-                      {activeTrooperIntents.map((intentEntry) => {
-                        const { id, trooper, displayName, isUnavailable, statusDetail } = intentEntry;
-                        const selectId = `${id}-intent`;
+                    <div className="dc-planning-intent-form">
+                      <ul className="dc-planning-intent-list">
+                        {activeTrooperIntents.map((intentEntry) => {
+                          const { id, trooper, displayName, isUnavailable, statusDetail } = intentEntry;
+                          const selectId = `${id}-intent`;
 
-                        const itemClassName = `dc-planning-intent-item ${
-                          isUnavailable
-                            ? "dc-planning-intent-item--unavailable"
-                            : "dc-planning-intent-item--with-select"
-                        }`;
+                          const itemClassName = `dc-planning-intent-item ${
+                            isUnavailable
+                              ? "dc-planning-intent-item--unavailable"
+                              : "dc-planning-intent-item--with-select"
+                          }`;
 
-                        return (
-                          <li key={id} className={itemClassName}>
-                            {isUnavailable ? (
-                              <>
-                                <span className="dc-planning-intent-name">{displayName}</span>
-                                <span className="dc-planning-intent-detail">{statusDetail}</span>
-                              </>
-                            ) : (
-                              <>
-                                <label className="dc-planning-intent-name" htmlFor={selectId}>
-                                  {displayName}:
-                                </label>
-                                <select
-                                  id={selectId}
-                                  className="dc-select dc-engagement-intent-select"
-                                  value={trooper.intent ?? ""}
-                                  onChange={(event) => {
-                                    const value = event.currentTarget.value as T.TrooperIntent | "";
-                                    handleIntentChange(trooper, value === "" ? null : value);
-                                  }}
-                                >
-                                  <option value="">Select intent</option>
-                                  {TROOPER_INTENTS.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    <div className="dc-planning-intent-counter" aria-label="Offense roll dice">
-                      <span className="dc-planning-intent-counter-label">Offense Roll D6</span>
-                      <div className="dc-planning-intent-counter-controls">
-                        <button
-                          type="button"
-                          className="dc-btn dc-btn--sm dc-planning-counter-btn"
-                          onClick={() => handleOffenseDiceAdjust(-1)}
-                          aria-label="Decrease offense roll dice"
-                        >
-                          -
-                        </button>
-                        <span className="dc-planning-intent-counter-value">{offenseDiceCount}</span>
-                        <button
-                          type="button"
-                          className="dc-btn dc-btn--sm dc-planning-counter-btn"
-                          onClick={() => handleOffenseDiceAdjust(1)}
-                          aria-label="Increase offense roll dice"
-                        >
-                          +
-                        </button>
+                          return (
+                            <li key={id} className={itemClassName}>
+                              {isUnavailable ? (
+                                <>
+                                  <span className="dc-planning-intent-name">{displayName}</span>
+                                  <span className="dc-planning-intent-detail">{statusDetail}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <label className="dc-planning-intent-name" htmlFor={selectId}>
+                                    {displayName}:
+                                  </label>
+                                  <select
+                                    id={selectId}
+                                    className="dc-select dc-engagement-intent-select"
+                                    value={trooper.intent ?? ""}
+                                    onChange={(event) => {
+                                      const value = event.currentTarget.value as T.TrooperIntent | "";
+                                      handleIntentChange(trooper, value === "" ? null : value);
+                                    }}
+                                  >
+                                    <option value="">Select intent</option>
+                                    {TROOPER_INTENTS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="dc-planning-intent-controls" aria-label="Offense roll dice controls">
+                        <span className="dc-planning-intent-controls-label">Offense Roll D6</span>
+                        <div className="dc-planning-intent-counter-controls">
+                          <button
+                            type="button"
+                            className="dc-btn dc-btn--sm dc-planning-counter-btn"
+                            onClick={() => handleOffenseDiceAdjust(-1)}
+                            aria-label="Decrease offense roll dice"
+                          >
+                            -
+                          </button>
+                          <span className="dc-planning-intent-counter-value">{offenseDiceCount}</span>
+                          <button
+                            type="button"
+                            className="dc-btn dc-btn--sm dc-planning-counter-btn"
+                            onClick={() => handleOffenseDiceAdjust(1)}
+                            aria-label="Increase offense roll dice"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </div>
+                    <section
+                      className="dc-planning-offense-breakdown"
+                      aria-label="Offense roll breakdown"
+                    >
+                      <span className="dc-planning-offense-breakdown__title">Offense Roll Breakdown</span>
+                      {selectedSector ? (
+                        offenseContributions.length > 0 ? (
+                          <>
+                            <ul className="dc-planning-offense-breakdown__list">
+                              {offenseContributions.map((entry) => (
+                                <li
+                                  key={entry.trooperId}
+                                  className="dc-planning-offense-breakdown__item"
+                                >
+                                  <div className="dc-planning-offense-breakdown__item-header">
+                                    <span className="dc-planning-offense-breakdown__name">{entry.name}</span>
+                                    <span className="dc-planning-offense-breakdown__value">
+                                      {formatSignedValue(entry.value)}
+                                    </span>
+                                  </div>
+                                  <p className="dc-planning-offense-breakdown__item-detail">
+                                    {entry.detail}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="dc-planning-offense-breakdown__total">
+                              <span>Total</span>
+                              <span>{formatSignedValue(offenseComputedTotal)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="dc-planning-offense-breakdown__empty">
+                            No troopers available to contribute.
+                          </p>
+                        )
+                      ) : (
+                        <p className="dc-planning-offense-breakdown__empty">
+                          Select a threat sector to view offense calculations.
+                        </p>
+                      )}
+                    </section>
                   </div>
                 </>
               ) : null}
