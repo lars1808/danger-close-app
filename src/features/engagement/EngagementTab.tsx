@@ -1097,6 +1097,190 @@ export default function EngagementTab(props: EngagementTabProps) {
     }));
   }
 
+  type PlanningTab = "intent" | "offense" | "defense" | "momentum" | "tactics";
+
+  const PLANNING_TABS: { id: PlanningTab; label: string }[] = [
+    { id: "intent", label: "Intent" },
+    { id: "offense", label: "Offense" },
+    { id: "defense", label: "Defense" },
+    { id: "momentum", label: "Momentum" },
+    { id: "tactics", label: "Tactics" },
+  ];
+
+  const [activePlanningTab, setActivePlanningTab] = React.useState<PlanningTab>("intent");
+
+  const [offenseDiceBySector, setOffenseDiceBySector] = React.useState<Map<string, number>>(
+    () => new Map(),
+  );
+
+  const activeTrooperIntents = React.useMemo(
+    () =>
+      deployedSquad.map((trooper) => {
+        const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+        const isBleedingOutOrDead = trooper.status === "Bleeding Out" || trooper.status === "Dead";
+        if (isBleedingOutOrDead) {
+          return {
+            id: `trooper-${trooper.storageIndex}`,
+            name: displayName,
+            detail: STATUS_DETAILS[trooper.status].label,
+          };
+        }
+
+        const intentLabel = TROOPER_INTENTS.find((option) => option.value === trooper.intent)?.label;
+        return {
+          id: `trooper-${trooper.storageIndex}`,
+          name: displayName,
+          detail: intentLabel ?? "No intent assigned",
+        };
+      }),
+    [deployedSquad],
+  );
+
+  const activeTrooperDefenses = React.useMemo(() => {
+    const fallbackOption =
+      DEFENSIVE_POSITIONS.find((option) => option.value === "In Cover") ??
+      ({ value: "In Cover", tone: "caution", detail: "Injury on 1-2" } as const);
+
+    return deployedSquad.map((trooper) => {
+      const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+      const isBleedingOutOrDead = trooper.status === "Bleeding Out" || trooper.status === "Dead";
+      if (isBleedingOutOrDead) {
+        return {
+          id: `trooper-${trooper.storageIndex}`,
+          name: displayName,
+          detail: STATUS_DETAILS[trooper.status].label,
+        };
+      }
+
+      const defensiveOption =
+        DEFENSIVE_POSITIONS.find((option) => option.value === trooper.defensivePosition) ??
+        fallbackOption;
+
+      return {
+        id: `trooper-${trooper.storageIndex}`,
+        name: displayName,
+        detail: `${defensiveOption.value}: ${defensiveOption.detail}`,
+        appearance:
+          defensiveOption.value === "Fortified"
+            ? "fortified"
+            : defensiveOption.value === "In Cover"
+              ? "in-cover"
+              : defensiveOption.value === "Flanked"
+                ? "flanked"
+                : undefined,
+      };
+    });
+  }, [deployedSquad]);
+
+  const activeTroopers = React.useMemo(
+    () =>
+      deployedSquad.filter(
+        (trooper) => trooper.status !== "Bleeding Out" && trooper.status !== "Dead",
+      ),
+    [deployedSquad],
+  );
+
+  const availableTrooperCount = activeTroopers.length;
+
+  const offensiveFlankingTroopers = React.useMemo(
+    () =>
+      activeTroopers
+        .filter((trooper) => trooper.offensivePosition === "Flanking")
+        .map((trooper) => trooper.name.trim() || `Trooper ${trooper.displayId}`),
+    [activeTroopers],
+  );
+
+  const defensiveFortifiedTroopers = React.useMemo(
+    () =>
+      activeTroopers
+        .filter((trooper) => trooper.defensivePosition === "Fortified")
+        .map((trooper) => trooper.name.trim() || `Trooper ${trooper.displayId}`),
+    [activeTroopers],
+  );
+
+  const defensiveFlankedTroopers = React.useMemo(
+    () =>
+      activeTroopers
+        .filter((trooper) => trooper.defensivePosition === "Flanked")
+        .map((trooper) => trooper.name.trim() || `Trooper ${trooper.displayId}`),
+    [activeTroopers],
+  );
+
+  const formatTrooperSummary = React.useCallback((trooperNames: string[]) => {
+    if (trooperNames.length === 0) {
+      return "None";
+    }
+    return trooperNames.join(", ");
+  }, []);
+
+  const flankingTrooperSummary = React.useMemo(
+    () => formatTrooperSummary(offensiveFlankingTroopers),
+    [formatTrooperSummary, offensiveFlankingTroopers],
+  );
+
+  const fortifiedTrooperSummary = React.useMemo(
+    () => formatTrooperSummary(defensiveFortifiedTroopers),
+    [defensiveFortifiedTroopers, formatTrooperSummary],
+  );
+
+  const flankedTrooperSummary = React.useMemo(
+    () => formatTrooperSummary(defensiveFlankedTroopers),
+    [defensiveFlankedTroopers, formatTrooperSummary],
+  );
+
+  const defenseThreatMessage = React.useMemo(() => {
+    if (threatLevel === null) {
+      return null;
+    }
+
+    if (threatLevel === 1 || threatLevel === 2) {
+      return "Troopers take 1 Injury if hit";
+    }
+
+    if (threatLevel === 3) {
+      return "Troopers have 2-in-6 odds of 2 Injuries if hit (otherwise 1 Injury)";
+    }
+
+    if (threatLevel === 4) {
+      return "Troopers have 3-in-6 odds of 2 Injuries if hit (otherwise 1 Injury)";
+    }
+
+    return null;
+  }, [threatLevel]);
+
+  const offenseDiceCount = React.useMemo(() => {
+    if (!selectedSectorId) {
+      return availableTrooperCount;
+    }
+
+    return offenseDiceBySector.get(selectedSectorId) ?? availableTrooperCount;
+  }, [availableTrooperCount, offenseDiceBySector, selectedSectorId]);
+
+  const handlePlanningTabSelect = React.useCallback((tab: PlanningTab) => {
+    setActivePlanningTab(tab);
+  }, []);
+
+  const handleOffenseDiceAdjust = React.useCallback(
+    (delta: 1 | -1) => {
+      if (!selectedSectorId) {
+        return;
+      }
+
+      setOffenseDiceBySector((prev) => {
+        const next = new Map(prev);
+        const currentValue = next.get(selectedSectorId) ?? availableTrooperCount;
+        const updatedValue = Math.max(0, currentValue + delta);
+        next.set(selectedSectorId, updatedValue);
+        return next;
+      });
+    },
+    [availableTrooperCount, selectedSectorId],
+  );
+
+  const offenseDiceLabel = React.useMemo(() => {
+    return offenseDiceCount <= 0 ? "0d6" : `${offenseDiceCount}d6`;
+  }, [offenseDiceCount]);
+
   const handleMomentumChange = React.useCallback(
     (delta: 1 | -1) => {
       if (!selectedSector) {
@@ -1605,6 +1789,216 @@ export default function EngagementTab(props: EngagementTabProps) {
                 })}
               </ul>
             )}
+          </div>
+        </article>
+      ) : null}
+
+      {selectedSector ? (
+        <article className="dc-engagement-card dc-planning-card">
+          <div className="dc-planning-tabs" role="tablist" aria-label="Engagement planning">
+            {PLANNING_TABS.map((tab) => {
+              const isActive = activePlanningTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`dc-planning-tab-${tab.id}`}
+                  className={`dc-planning-tab${isActive ? " is-active" : ""}`}
+                  aria-selected={isActive}
+                  aria-controls={`dc-planning-panel-${tab.id}`}
+                  onClick={() => handlePlanningTabSelect(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="dc-planning-panels">
+            <div
+              id="dc-planning-panel-intent"
+              role="tabpanel"
+              aria-labelledby="dc-planning-tab-intent"
+              hidden={activePlanningTab !== "intent"}
+              className="dc-planning-panel"
+            >
+              {activePlanningTab === "intent" ? (
+                <>
+                  <p className="dc-planning-intro">
+                    Every Trooper that isn&apos;t currently Bleeding Out or Dead determines their
+                    course of action during this Exchange.
+                  </p>
+                  <div className="dc-planning-intent">
+                    <ul className="dc-planning-intent-list">
+                      {activeTrooperIntents.map((intent) => (
+                        <li key={intent.id} className="dc-planning-intent-item">
+                          <span className="dc-planning-intent-name">{intent.name}</span>
+                          <span className="dc-planning-intent-detail">{intent.detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="dc-planning-intent-counter" aria-label="Offense roll dice">
+                      <span className="dc-planning-intent-counter-label">Offense Roll D6</span>
+                      <div className="dc-planning-intent-counter-controls">
+                        <button
+                          type="button"
+                          className="dc-btn dc-btn--sm dc-planning-counter-btn"
+                          onClick={() => handleOffenseDiceAdjust(-1)}
+                          aria-label="Decrease offense roll dice"
+                        >
+                          -
+                        </button>
+                        <span className="dc-planning-intent-counter-value">{offenseDiceCount}</span>
+                        <button
+                          type="button"
+                          className="dc-btn dc-btn--sm dc-planning-counter-btn"
+                          onClick={() => handleOffenseDiceAdjust(1)}
+                          aria-label="Increase offense roll dice"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <div
+              id="dc-planning-panel-offense"
+              role="tabpanel"
+              aria-labelledby="dc-planning-tab-offense"
+              hidden={activePlanningTab !== "offense"}
+              className="dc-planning-panel"
+            >
+              {activePlanningTab === "offense" ? (
+                <>
+                  <p className="dc-planning-offense-roll">
+                    Roll all {offenseDiceLabel} &amp; take the highest value.
+                  </p>
+                  <div className="dc-planning-offense-results">
+                    {threatLevel === null ? (
+                      <p className="dc-planning-offense-placeholder">
+                        Select a threat level sector to view outcomes.
+                      </p>
+                    ) : null}
+                    {threatLevel !== null ? (
+                      <ul className="dc-planning-offense-table">
+                        {(threatLevel === 1 || threatLevel === 2
+                          ? [
+                              { range: "1-3", description: "Pushed Back. Lose 1 Momentum" },
+                              { range: "4-5", description: "Hold Position or Success at a Cost" },
+                              { range: "6", description: "Success" },
+                            ]
+                          : [
+                              { range: "1-3", description: "Pushed Back. Lose 1 Momentum" },
+                              { range: "4", description: "Hold Position" },
+                              { range: "5", description: "Hold Position or Success at a Cost" },
+                              { range: "6", description: "Success" },
+                            ]
+                        ).map((row) => (
+                          <li key={row.range} className="dc-planning-offense-row">
+                            <span className="dc-planning-offense-range">{row.range}</span>
+                            <span className="dc-planning-offense-description">{row.description}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <div
+              id="dc-planning-panel-defense"
+              role="tabpanel"
+              aria-labelledby="dc-planning-tab-defense"
+              hidden={activePlanningTab !== "defense"}
+              className="dc-planning-panel"
+            >
+              {activePlanningTab === "defense" ? (
+                <>
+                  <p
+                    className={
+                      defenseThreatMessage
+                        ? "dc-planning-defense-guidance"
+                        : "dc-planning-defense-placeholder"
+                    }
+                  >
+                    {defenseThreatMessage ?? "Select a threat level sector to view defensive risks."}
+                  </p>
+                  <div className="dc-planning-intent">
+                    <ul className="dc-planning-intent-list">
+                      {activeTrooperDefenses.map((defense) => {
+                        const defenseItemClassName = defense.appearance
+                          ? `dc-planning-intent-item dc-planning-defense-item--${defense.appearance}`
+                          : "dc-planning-intent-item";
+
+                        return (
+                          <li key={defense.id} className={defenseItemClassName}>
+                            <span className="dc-planning-intent-name">{defense.name}</span>
+                            <span className="dc-planning-intent-detail">{defense.detail}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <div
+              id="dc-planning-panel-momentum"
+              role="tabpanel"
+              aria-labelledby="dc-planning-tab-momentum"
+              hidden={activePlanningTab !== "momentum"}
+              className="dc-planning-panel"
+            >
+              {activePlanningTab === "momentum" ? (
+                <div className="dc-planning-momentum">
+                  <section
+                    className="dc-planning-momentum-column"
+                    aria-labelledby="dc-planning-momentum-gain"
+                  >
+                    <h4 id="dc-planning-momentum-gain" className="dc-planning-momentum-heading">
+                      Momentum Gain
+                    </h4>
+                    <ul className="dc-planning-momentum-list">
+                      <li>Gain +1d6 on the next Offensive Roll</li>
+                      <li>
+                        Any Troopers that were Flanking can either choose to become Engaged or to remain
+                        Flanking, but with the risk of +1 Injury if hit during the next Exchange. Applies to:
+                        <span className="dc-planning-momentum-highlight"> {flankingTrooperSummary}</span>
+                      </li>
+                      <li>
+                        Any Troopers that were Fortified can either choose to become Limited or Engaged + In
+                        Cover. Applies to:
+                        <span className="dc-planning-momentum-highlight"> {fortifiedTrooperSummary}</span>
+                      </li>
+                    </ul>
+                  </section>
+                  <section
+                    className="dc-planning-momentum-column"
+                    aria-labelledby="dc-planning-momentum-loss"
+                  >
+                    <h4 id="dc-planning-momentum-loss" className="dc-planning-momentum-heading">
+                      Momentum Loss
+                    </h4>
+                    <ul className="dc-planning-momentum-list">
+                      <li>
+                        On Momentum Loss, any Flanked Troopers must Fall Back in the next Exchange, or gain +1
+                        Injury if hit during that round. Applies to:
+                        <span className="dc-planning-momentum-highlight"> {flankedTrooperSummary}</span>
+                      </li>
+                    </ul>
+                  </section>
+                </div>
+              ) : null}
+            </div>
+            <div
+              id="dc-planning-panel-tactics"
+              role="tabpanel"
+              aria-labelledby="dc-planning-tab-tactics"
+              hidden={activePlanningTab !== "tactics"}
+              className="dc-planning-panel"
+            />
           </div>
         </article>
       ) : null}
