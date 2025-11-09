@@ -1765,34 +1765,42 @@ export default function EngagementTab(props: EngagementTabProps) {
               hidden={activePlanningTab !== "offense"}
               className="dc-planning-panel"
             >
-              <p className="dc-planning-offense-roll">Roll all {offenseDiceLabel} &amp; take the highest value.</p>
-              <div className="dc-planning-offense-results">
-                {threatLevel === null ? (
-                  <p className="dc-planning-offense-placeholder">Select a threat level sector to view outcomes.</p>
-                ) : null}
-                {threatLevel !== null ? (
-                  <ul className="dc-planning-offense-table">
-                    {(threatLevel === 1 || threatLevel === 2
-                      ? [
-                          { range: "1-3", description: "Pushed Back. Lose 1 Momentum" },
-                          { range: "4-5", description: "Hold Position or Success at a Cost" },
-                          { range: "6", description: "Success" },
-                        ]
-                      : [
-                          { range: "1-3", description: "Pushed Back. Lose 1 Momentum" },
-                          { range: "4", description: "Hold Position" },
-                          { range: "5", description: "Hold Position or Success at a Cost" },
-                          { range: "6", description: "Success" },
-                        ]
-                    ).map((row) => (
-                      <li key={row.range} className="dc-planning-offense-row">
-                        <span className="dc-planning-offense-range">{row.range}</span>
-                        <span className="dc-planning-offense-description">{row.description}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+              {activePlanningTab === "offense" ? (
+                <>
+                  <p className="dc-planning-offense-roll">
+                    Roll all {offenseDiceLabel} &amp; take the highest value.
+                  </p>
+                  <div className="dc-planning-offense-results">
+                    {threatLevel === null ? (
+                      <p className="dc-planning-offense-placeholder">
+                        Select a threat level sector to view outcomes.
+                      </p>
+                    ) : null}
+                    {threatLevel !== null ? (
+                      <ul className="dc-planning-offense-table">
+                        {(threatLevel === 1 || threatLevel === 2
+                          ? [
+                              { range: "1-3", description: "Pushed Back. Lose 1 Momentum" },
+                              { range: "4-5", description: "Hold Position or Success at a Cost" },
+                              { range: "6", description: "Success" },
+                            ]
+                          : [
+                              { range: "1-3", description: "Pushed Back. Lose 1 Momentum" },
+                              { range: "4", description: "Hold Position" },
+                              { range: "5", description: "Hold Position or Success at a Cost" },
+                              { range: "6", description: "Success" },
+                            ]
+                        ).map((row) => (
+                          <li key={row.range} className="dc-planning-offense-row">
+                            <span className="dc-planning-offense-range">{row.range}</span>
+                            <span className="dc-planning-offense-description">{row.description}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
             </div>
             <div
               id="dc-planning-panel-defense"
