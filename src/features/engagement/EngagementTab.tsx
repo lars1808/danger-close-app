@@ -1252,19 +1252,13 @@ export default function EngagementTab(props: EngagementTabProps) {
       deployedSquad.map((trooper) => {
         const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
         const isBleedingOutOrDead = trooper.status === "Bleeding Out" || trooper.status === "Dead";
-        if (isBleedingOutOrDead) {
-          return {
-            id: `trooper-${trooper.storageIndex}`,
-            name: displayName,
-            detail: STATUS_DETAILS[trooper.status].label,
-          };
-        }
 
-        const intentLabel = TROOPER_INTENTS.find((option) => option.value === trooper.intent)?.label;
         return {
           id: `trooper-${trooper.storageIndex}`,
-          name: displayName,
-          detail: intentLabel ?? "No intent assigned",
+          trooper,
+          displayName,
+          isUnavailable: isBleedingOutOrDead,
+          statusDetail: isBleedingOutOrDead ? STATUS_DETAILS[trooper.status].label : null,
         };
       }),
     [deployedSquad],
@@ -1964,12 +1958,43 @@ export default function EngagementTab(props: EngagementTabProps) {
                   </p>
                   <div className="dc-planning-intent">
                     <ul className="dc-planning-intent-list">
-                      {activeTrooperIntents.map((intent) => (
-                        <li key={intent.id} className="dc-planning-intent-item">
-                          <span className="dc-planning-intent-name">{intent.name}</span>
-                          <span className="dc-planning-intent-detail">{intent.detail}</span>
-                        </li>
-                      ))}
+                      {activeTrooperIntents.map((intentEntry) => {
+                        const { id, trooper, displayName, isUnavailable, statusDetail } = intentEntry;
+                        const selectId = `${id}-intent`;
+
+                        return (
+                          <li key={id} className="dc-planning-intent-item">
+                            {isUnavailable ? (
+                              <>
+                                <span className="dc-planning-intent-name">{displayName}</span>
+                                <span className="dc-planning-intent-detail">{statusDetail}</span>
+                              </>
+                            ) : (
+                              <>
+                                <label className="dc-planning-intent-name" htmlFor={selectId}>
+                                  {displayName}:
+                                </label>
+                                <select
+                                  id={selectId}
+                                  className="dc-select dc-engagement-intent-select"
+                                  value={trooper.intent ?? ""}
+                                  onChange={(event) => {
+                                    const value = event.currentTarget.value as T.TrooperIntent | "";
+                                    handleIntentChange(trooper, value === "" ? null : value);
+                                  }}
+                                >
+                                  <option value="">Select intent</option>
+                                  {TROOPER_INTENTS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                     <div className="dc-planning-intent-counter" aria-label="Offense roll dice">
                       <span className="dc-planning-intent-counter-label">Offense Roll D6</span>
@@ -2408,25 +2433,6 @@ export default function EngagementTab(props: EngagementTabProps) {
                                 </div>
                               ) : null}
                             </div>
-                          </div>
-                          <div className="dc-engagement-intent">
-                            <label className="dc-engagement-intent-label" htmlFor={`${baseId}-intent`}>Intent:</label>
-                            <select
-                              id={`${baseId}-intent`}
-                              className="dc-select dc-engagement-intent-select"
-                              value={trooper.intent ?? ""}
-                              onChange={(event) => {
-                                const value = event.currentTarget.value as T.TrooperIntent | "";
-                                handleIntentChange(trooper, value === "" ? null : value);
-                              }}
-                            >
-                              <option value="">Select intent</option>
-                              {TROOPER_INTENTS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
                           </div>
                         </div>
 
