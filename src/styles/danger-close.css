@@ -1229,6 +1229,7 @@ h1, h2, h3 {
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(34, 36, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .dc-planning-intent-name {
@@ -1325,6 +1326,78 @@ h1, h2, h3 {
 
 .dc-planning-offense-description {
   color: var(--text-dim);
+}
+
+.dc-planning-defense-guidance {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.dc-planning-defense-placeholder {
+  margin: 0;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.dc-planning-defense-item--fortified {
+  border-color: color-mix(in srgb, var(--threat-tl1) 55%, transparent);
+  background: color-mix(in srgb, var(--threat-tl1) 22%, rgba(34, 36, 42, 0.72));
+}
+
+.dc-planning-defense-item--in-cover {
+  border-color: color-mix(in srgb, var(--threat-tl2) 55%, transparent);
+  background: color-mix(in srgb, var(--threat-tl2) 20%, rgba(34, 36, 42, 0.72));
+}
+
+.dc-planning-defense-item--flanked {
+  border-color: color-mix(in srgb, var(--threat-tl4) 55%, transparent);
+  background: color-mix(in srgb, var(--threat-tl4) 24%, rgba(34, 36, 42, 0.72));
+}
+
+.dc-planning-momentum {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 720px) {
+  .dc-planning-momentum {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dc-planning-momentum-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(34, 36, 42, 0.72);
+}
+
+.dc-planning-momentum-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dc-planning-momentum-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.dc-planning-momentum-list li {
+  color: var(--text-dim);
+}
+
+.dc-planning-momentum-highlight {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .dc-engagement-squad {
