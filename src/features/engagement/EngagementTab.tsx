@@ -1721,42 +1721,46 @@ export default function EngagementTab(props: EngagementTabProps) {
               hidden={activePlanningTab !== "intent"}
               className="dc-planning-panel"
             >
-              <p className="dc-planning-intro">
-                Every Trooper that isn&apos;t currently Bleeding Out or Dead determines their course of
-                action during this Exchange.
-              </p>
-              <div className="dc-planning-intent">
-                <ul className="dc-planning-intent-list">
-                  {activeTrooperIntents.map((intent) => (
-                    <li key={intent.id} className="dc-planning-intent-item">
-                      <span className="dc-planning-intent-name">{intent.name}</span>
-                      <span className="dc-planning-intent-detail">{intent.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="dc-planning-intent-counter" aria-label="Offense roll dice">
-                  <span className="dc-planning-intent-counter-label">Offense Roll D6</span>
-                  <div className="dc-planning-intent-counter-controls">
-                    <button
-                      type="button"
-                      className="dc-btn dc-btn--sm dc-planning-counter-btn"
-                      onClick={() => handleOffenseDiceAdjust(-1)}
-                      aria-label="Decrease offense roll dice"
-                    >
-                      -
-                    </button>
-                    <span className="dc-planning-intent-counter-value">{offenseDiceCount}</span>
-                    <button
-                      type="button"
-                      className="dc-btn dc-btn--sm dc-planning-counter-btn"
-                      onClick={() => handleOffenseDiceAdjust(1)}
-                      aria-label="Increase offense roll dice"
-                    >
-                      +
-                    </button>
+              {activePlanningTab === "intent" ? (
+                <>
+                  <p className="dc-planning-intro">
+                    Every Trooper that isn&apos;t currently Bleeding Out or Dead determines their
+                    course of action during this Exchange.
+                  </p>
+                  <div className="dc-planning-intent">
+                    <ul className="dc-planning-intent-list">
+                      {activeTrooperIntents.map((intent) => (
+                        <li key={intent.id} className="dc-planning-intent-item">
+                          <span className="dc-planning-intent-name">{intent.name}</span>
+                          <span className="dc-planning-intent-detail">{intent.detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="dc-planning-intent-counter" aria-label="Offense roll dice">
+                      <span className="dc-planning-intent-counter-label">Offense Roll D6</span>
+                      <div className="dc-planning-intent-counter-controls">
+                        <button
+                          type="button"
+                          className="dc-btn dc-btn--sm dc-planning-counter-btn"
+                          onClick={() => handleOffenseDiceAdjust(-1)}
+                          aria-label="Decrease offense roll dice"
+                        >
+                          -
+                        </button>
+                        <span className="dc-planning-intent-counter-value">{offenseDiceCount}</span>
+                        <button
+                          type="button"
+                          className="dc-btn dc-btn--sm dc-planning-counter-btn"
+                          onClick={() => handleOffenseDiceAdjust(1)}
+                          aria-label="Increase offense roll dice"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              ) : null}
             </div>
             <div
               id="dc-planning-panel-offense"
