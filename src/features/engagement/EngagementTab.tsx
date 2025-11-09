@@ -1136,6 +1136,34 @@ export default function EngagementTab(props: EngagementTabProps) {
     [deployedSquad],
   );
 
+  const activeTrooperDefenses = React.useMemo(() => {
+    const fallbackOption =
+      DEFENSIVE_POSITIONS.find((option) => option.value === "In Cover") ??
+      ({ value: "In Cover", tone: "caution", detail: "Injury on 1-2" } as const);
+
+    return deployedSquad.map((trooper) => {
+      const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+      const isBleedingOutOrDead = trooper.status === "Bleeding Out" || trooper.status === "Dead";
+      if (isBleedingOutOrDead) {
+        return {
+          id: `trooper-${trooper.storageIndex}`,
+          name: displayName,
+          detail: STATUS_DETAILS[trooper.status].label,
+        };
+      }
+
+      const defensiveOption =
+        DEFENSIVE_POSITIONS.find((option) => option.value === trooper.defensivePosition) ??
+        fallbackOption;
+
+      return {
+        id: `trooper-${trooper.storageIndex}`,
+        name: displayName,
+        detail: `${defensiveOption.value}: ${defensiveOption.detail}`,
+      };
+    });
+  }, [deployedSquad]);
+
   const availableTrooperCount = React.useMemo(
     () =>
       deployedSquad.reduce((count, trooper) => {
@@ -1812,7 +1840,20 @@ export default function EngagementTab(props: EngagementTabProps) {
               aria-labelledby="dc-planning-tab-defense"
               hidden={activePlanningTab !== "defense"}
               className="dc-planning-panel"
-            />
+            >
+              {activePlanningTab === "defense" ? (
+                <div className="dc-planning-intent">
+                  <ul className="dc-planning-intent-list">
+                    {activeTrooperDefenses.map((defense) => (
+                      <li key={defense.id} className="dc-planning-intent-item">
+                        <span className="dc-planning-intent-name">{defense.name}</span>
+                        <span className="dc-planning-intent-detail">{defense.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
             <div
               id="dc-planning-panel-momentum"
               role="tabpanel"
