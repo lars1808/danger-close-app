@@ -1150,6 +1150,34 @@ h1, h2, h3 {
   color: var(--text-dim);
 }
 
+.dc-engagement-squad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dc-engagement-intent-clear {
+  margin-left: auto;
+}
+
+.dc-engagement-intent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.dc-engagement-intent-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dc-engagement-intent-select {
+  width: min(100%, 240px);
+}
+
 .dc-engagement-squad-alerts {
   display: flex;
   flex-direction: column;

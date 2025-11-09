@@ -93,6 +93,17 @@ const DEFENSIVE_POSITIONS: PositionOption<T.DefensivePosition>[] = [
   { value: "Flanked", tone: "negative", detail: "Injury on 1-3" },
 ];
 
+const TROOPER_INTENTS: { value: T.TrooperIntent; label: string }[] = [
+  { value: "Fire", label: "Fire" },
+  { value: "Move", label: "Move" },
+  { value: "Covering Fire", label: "Covering Fire" },
+  { value: "Use Special Gear", label: "Use Special Gear" },
+  { value: "Interact", label: "Interact" },
+  { value: "Disengage", label: "Disengage" },
+];
+
+const TROOPER_INTENT_VALUES = TROOPER_INTENTS.map((option) => option.value);
+
 type AdvanceOutcome = "Ambushed" | "Spotted" | "Advantage" | "Surprise" | "Overwhelm";
 
 const ADVANCE_OUTCOME_DETAILS: Record<AdvanceOutcome, string> = {
@@ -226,6 +237,7 @@ interface NormalizedTrooper {
   specialGear: string[];
   offensivePosition: T.OffensivePosition;
   defensivePosition: T.DefensivePosition;
+  intent: T.TrooperIntent | null;
 }
 
 export default function EngagementTab(props: EngagementTabProps) {
@@ -278,6 +290,9 @@ export default function EngagementTab(props: EngagementTabProps) {
         : [];
       const offensivePosition = (trooper?.offensivePosition as T.OffensivePosition) ?? "Engaged";
       const defensivePosition = (trooper?.defensivePosition as T.DefensivePosition) ?? "In Cover";
+      const intent = TROOPER_INTENT_VALUES.includes(trooper?.intent as T.TrooperIntent)
+        ? (trooper?.intent as T.TrooperIntent)
+        : null;
 
       return {
         storageIndex: index,
@@ -292,6 +307,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         specialGear,
         offensivePosition,
         defensivePosition,
+        intent,
       };
     });
   }, [clampZeroToThree, storedSquad]);
@@ -305,6 +321,11 @@ export default function EngagementTab(props: EngagementTabProps) {
   }, [storedArmory.items]);
 
   const deployedSquad = React.useMemo(() => normalizedSquad.slice(0, 5), [normalizedSquad]);
+
+  const hasIntentAssignments = React.useMemo(
+    () => normalizedSquad.some((trooper) => trooper.intent !== null),
+    [normalizedSquad],
+  );
 
   const hasSquadEntries = deployedSquad.length > 0;
 
@@ -702,6 +723,76 @@ export default function EngagementTab(props: EngagementTabProps) {
     },
     [persistSquad],
   );
+
+  const handleIntentChange = React.useCallback(
+    (trooper: NormalizedTrooper, nextIntent: T.TrooperIntent | null) => {
+      if (trooper.intent === nextIntent) {
+        return;
+      }
+
+      persistSquad((prev) =>
+        prev.map((entry, index) => {
+          if (index !== trooper.storageIndex) {
+            return entry;
+          }
+
+          const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+
+          if (nextIntent === null) {
+            if (!('intent' in base)) {
+              return entry;
+            }
+
+            const next = { ...base };
+            delete next.intent;
+            if (trooper.storedId !== null) {
+              next.id = trooper.storedId;
+            }
+            return next;
+          }
+
+          const next: Partial<T.Trooper> = {
+            ...base,
+            intent: nextIntent,
+          };
+          if (trooper.storedId !== null) {
+            next.id = trooper.storedId;
+          }
+          return next;
+        }),
+      );
+    },
+    [persistSquad],
+  );
+
+  const handleClearAllIntents = React.useCallback(() => {
+    if (!hasIntentAssignments) {
+      return;
+    }
+
+    persistSquad((prev) =>
+      prev.map((entry, index) => {
+        const trooper = normalizedSquad[index];
+        const entryHasIntent = Boolean(entry && 'intent' in entry);
+        const trooperHasIntent = Boolean(trooper && trooper.intent !== null);
+
+        if (!entryHasIntent && !trooperHasIntent) {
+          return entry;
+        }
+
+        const next: Partial<T.Trooper> = entry ? { ...entry } : {};
+        if ('intent' in next) {
+          delete next.intent;
+        }
+
+        if (trooper?.storedId !== null) {
+          next.id = trooper.storedId;
+        }
+
+        return next;
+      }),
+    );
+  }, [hasIntentAssignments, normalizedSquad, persistSquad]);
 
   const [advanceRolls, setAdvanceRolls] = React.useState(0);
   const [customModifier, setCustomModifier] = React.useState(0);
@@ -1519,8 +1610,18 @@ export default function EngagementTab(props: EngagementTabProps) {
       ) : null}
 
       <div className="dc-engagement-squad">
-        <h3 className="dc-engagement-squad-title">Squad Status</h3>
-            {selectedSector && squadAlerts.length > 0 ? (
+        <div className="dc-engagement-squad-header">
+          <h3 className="dc-engagement-squad-title">Squad Status</h3>
+          <button
+            type="button"
+            className="dc-btn dc-btn--sm dc-engagement-intent-clear"
+            onClick={handleClearAllIntents}
+            disabled={!hasIntentAssignments}
+          >
+            Clear Intent
+          </button>
+        </div>
+        {selectedSector && squadAlerts.length > 0 ? (
               <div className="dc-engagement-squad-alerts" aria-live="polite">
                 {squadAlerts.map((message) => (
                   <div key={message} className="dc-engagement-squad-alert" role="alert">
@@ -1737,6 +1838,25 @@ export default function EngagementTab(props: EngagementTabProps) {
                                 </div>
                               ) : null}
                             </div>
+                          </div>
+                          <div className="dc-engagement-intent">
+                            <label className="dc-engagement-intent-label" htmlFor={`${baseId}-intent`}>Intent:</label>
+                            <select
+                              id={`${baseId}-intent`}
+                              className="dc-select dc-engagement-intent-select"
+                              value={trooper.intent ?? ""}
+                              onChange={(event) => {
+                                const value = event.currentTarget.value as T.TrooperIntent | "";
+                                handleIntentChange(trooper, value === "" ? null : value);
+                              }}
+                            >
+                              <option value="">Select intent</option>
+                              {TROOPER_INTENTS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
 
