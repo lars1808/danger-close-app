@@ -9,6 +9,16 @@ import {
 } from "./storageKeys";
 import { getSectorDisplayName } from "../mission/missionUtils";
 
+type StatusTone = "ok" | "grazed" | "wounded" | "bleeding" | "dead";
+
+const STATUS_TONES: Record<T.Status, StatusTone> = {
+  OK: "ok",
+  Grazed: "grazed",
+  Wounded: "wounded",
+  "Bleeding Out": "bleeding",
+  Dead: "dead",
+};
+
 function createTrooper(id: number): T.Trooper {
   return {
     id,
@@ -275,6 +285,9 @@ export default function SquadTable(props: SquadTableProps) {
   const [dragOverTrooperId, setDragOverTrooperId] = useState<number | null>(null);
   const [squadName, setSquadName] = useState<string>(() => localStorage.getItem(SQUAD_NAME_STORAGE_KEY) ?? "");
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [openStatusId, setOpenStatusId] = useState<number | null>(null);
+
+  const statusMenuRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
 
   const inventoryIndex = React.useMemo(() => {
     const index: Record<string, T.SquadInventoryItem> = {};
@@ -413,6 +426,38 @@ export default function SquadTable(props: SquadTableProps) {
       items: prev.items.filter((candidate) => candidate.id !== itemId),
     }));
   }
+
+  React.useEffect(() => {
+    const activeId = openStatusId;
+    if (activeId === null) {
+      return;
+    }
+    const resolvedId = activeId;
+
+    function handlePointerDown(event: PointerEvent) {
+      const container = statusMenuRefs.current.get(resolvedId);
+      if (!container) {
+        return;
+      }
+      if (event.target instanceof Node && !container.contains(event.target)) {
+        setOpenStatusId(null);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenStatusId(null);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openStatusId]);
 
   function resetSquad() {
     if (confirm("Reset squad to defaults?")) {
@@ -554,6 +599,30 @@ export default function SquadTable(props: SquadTableProps) {
       : `${weapon}, ${armor}`;
   }
 
+  function handleToggleStatusMenu(trooperId: number) {
+    setOpenStatusId((previous) => (previous === trooperId ? null : trooperId));
+  }
+
+  function handleStatusChange(trooper: T.Trooper, nextStatus: T.Status) {
+    if (trooper.status === nextStatus) {
+      setOpenStatusId(null);
+      return;
+    }
+
+    update(trooper.id, "status", nextStatus);
+
+    if (nextStatus === "Dead") {
+      const currentSector = mission.sectors.find((sector) => sector.id === currentSectorId);
+      const sectorName = currentSector ? getSectorDisplayName(currentSector) : "Unknown Sector";
+      const missionName = mission.name.trim() || "Unknown Mission";
+      onAddLog(`++ ${trooper.name} down - status: KIA - ${sectorName} - Mission: ${missionName} ++`, "SYSTEM");
+    } else {
+      onAddLog(`${trooper.name} status changed to ${nextStatus}`, "SYSTEM");
+    }
+
+    setOpenStatusId(null);
+  }
+
   const primaryTroopers = troopers.slice(0, 5);
   const reserveTroopers = troopers.slice(5);
   const visibleTroopers = showAllTroopers ? troopers : primaryTroopers;
@@ -652,33 +721,58 @@ export default function SquadTable(props: SquadTableProps) {
                       </div>
                     </td>
 
-{/* Status */}
-<td className="dc-col-status">
-  <select
-    className="dc-status-select"
-    value={t.status}
-    onChange={(e) => {
-      const newStatus = e.target.value as T.Status;
-      update(t.id, "status", newStatus);
-
-      // Special KIA message format when status is Dead
-      if (newStatus === "Dead") {
-        const currentSector = mission.sectors.find((s) => s.id === currentSectorId);
-        const sectorName = currentSector ? getSectorDisplayName(currentSector) : "Unknown Sector";
-        const missionName = mission.name.trim() || "Unknown Mission";
-        onAddLog(`++ ${t.name} down - status: KIA - ${sectorName} - Mission: ${missionName} ++`, "SYSTEM");
-      } else {
-        onAddLog(`${t.name} status changed to ${newStatus}`, "SYSTEM");
-      }
-    }}
-  >
-    <option value="OK" className="dc-status-option--ok">OK</option>
-    <option value="Grazed" className="dc-status-option--grazed">Grazed</option>
-    <option value="Wounded" className="dc-status-option--wounded">Wounded</option>
-    <option value="Bleeding Out" className="dc-status-option--bleeding">Bleeding Out</option>
-    <option value="Dead" className="dc-status-option--dead">Dead</option>
-  </select>
-</td>
+                    {/* Status */}
+                    <td className="dc-col-status">
+                      <div
+                        className="dc-status-control"
+                        ref={(element) => {
+                          const map = statusMenuRefs.current;
+                          if (element) {
+                            map.set(t.id, element);
+                          } else {
+                            map.delete(t.id);
+                          }
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className={`dc-status-button dc-status-button--${STATUS_TONES[t.status]}`}
+                          onClick={() => handleToggleStatusMenu(t.id)}
+                          aria-haspopup="true"
+                          aria-expanded={openStatusId === t.id}
+                          aria-controls={`dc-squad-status-menu-${t.id}`}
+                        >
+                          <span className="dc-status-button__label">{t.status}</span>
+                          <span className="dc-status-button__chevron" aria-hidden="true">▾</span>
+                        </button>
+                        {openStatusId === t.id ? (
+                          <div
+                            id={`dc-squad-status-menu-${t.id}`}
+                            className="dc-status-menu"
+                            role="menu"
+                          >
+                            {T.STATUS_ORDER.map((statusOption) => {
+                              const isActive = t.status === statusOption;
+                              return (
+                                <button
+                                  type="button"
+                                  key={statusOption}
+                                  className={`dc-status-menu-option dc-status-menu-option--${STATUS_TONES[statusOption]}${
+                                    isActive ? " is-active" : ""
+                                  }`}
+                                  onClick={() => handleStatusChange(t, statusOption)}
+                                  role="menuitemradio"
+                                  aria-checked={isActive}
+                                >
+                                  <span className="dc-status-menu-option-dot" aria-hidden="true" />
+                                  <span>{statusOption}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
 
                     {/* Grit */}
                     <td className="dc-td--num">

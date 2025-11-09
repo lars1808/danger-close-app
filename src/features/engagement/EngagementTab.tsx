@@ -1578,7 +1578,7 @@ export default function EngagementTab(props: EngagementTabProps) {
                               <span className="dc-engagement-squad-name-text">{displayName}</span>
                             </div>
                             <div
-                              className="dc-engagement-squad-status"
+                              className="dc-engagement-squad-status dc-status-control"
                               ref={(element) => {
                                 const map = statusMenuRefs.current;
                                 if (element) {
@@ -1591,17 +1591,21 @@ export default function EngagementTab(props: EngagementTabProps) {
 
                               <button
                                 type="button"
-                                className={`dc-status-indicator dc-status-indicator--${statusDetail.tone}`}
+                                className={`dc-status-button dc-status-button--${statusDetail.tone}`}
                                 onClick={() => handleToggleStatusMenu(trooper.storageIndex)}
                                 aria-haspopup="true"
                                 aria-expanded={openStatusIndex === trooper.storageIndex}
-                                aria-label={`Status: ${statusDetail.label}`}
+                                aria-controls={`dc-engagement-status-menu-${trooper.storageIndex}`}
                               >
-                                <span className="dc-status-indicator__icon" aria-hidden="true" />
+                                <span className="dc-status-button__label">{statusDetail.label}</span>
+                                <span className="dc-status-button__chevron" aria-hidden="true">▾</span>
                               </button>
-                               <span className="dc-engagement-squad-status-text">{statusDetail.label}</span>
-                              {openStatusIndex === trooper.storageIndex ? (
-                                <div className="dc-status-menu" role="menu">
+                                {openStatusIndex === trooper.storageIndex ? (
+                                <div
+                                  id={`dc-engagement-status-menu-${trooper.storageIndex}`}
+                                  className="dc-status-menu"
+                                  role="menu"
+                                >
                                   {T.STATUS_ORDER.map((statusOption) => {
                                     const optionDetail = STATUS_DETAILS[statusOption];
                                     const isActive = trooper.status === statusOption;
