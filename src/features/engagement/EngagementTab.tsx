@@ -1312,15 +1312,16 @@ export default function EngagementTab(props: EngagementTabProps) {
         const threshold = (option.injuryThreshold ?? 0) + heavyArmorModifier;
         return Math.max(threshold, 0);
       });
-      const thresholdLabels = thresholds.map((threshold) => {
-        if (threshold <= 0) {
+      const activeThreshold = thresholds[defensiveIndex] ?? 0;
+      const activeThresholdLabel = (() => {
+        if (activeThreshold <= 0) {
           return "Fully shielded";
         }
-        if (threshold === 1) {
+        if (activeThreshold === 1) {
           return "Injury on 1";
         }
-        return `Injury on ${threshold} or lower`;
-      });
+        return `Injury on ${activeThreshold} or lower`;
+      })();
 
       return {
         id: `trooper-${trooper.storageIndex}`,
@@ -1332,24 +1333,17 @@ export default function EngagementTab(props: EngagementTabProps) {
               {trooper.armorId === "heavy" ? " + Heavy Armor" : ""}
             </span>
             <div className="dc-planning-defense-thresholds">
-              {thresholdLabels.map((label, index) => {
-                const thresholdClassName = [
+              <span
+                className={[
                   "dc-planning-defense-threshold",
-                  index === defensiveIndex ? " is-active" : "",
-                  thresholds[index] <= 0 ? " is-shielded" : "",
+                  "is-active",
+                  activeThreshold <= 0 ? "is-shielded" : "",
                 ]
                   .filter(Boolean)
-                  .join(" ");
-
-                return (
-                  <span
-                    key={DEFENSIVE_POSITIONS[index]?.value ?? `threshold-${index}`}
-                    className={thresholdClassName}
-                  >
-                    {label}
-                  </span>
-                );
-              })}
+                  .join(" ")}
+              >
+                {activeThresholdLabel}
+              </span>
             </div>
           </div>
         ),

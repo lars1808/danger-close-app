@@ -1391,7 +1391,7 @@ h1, h2, h3 {
 
 .dc-planning-defense-item {
   flex: 0 0 auto;
-  min-width: 260px;
+  min-width: 220px;
 }
 
 .dc-planning-intent-item--with-select {
