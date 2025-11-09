@@ -11,7 +11,7 @@ import "./styles/danger-close.css";
 import * as T from "./features/squad/types";
 
 type TabName = "squad" | "mission" | "engagement" | "log";
-type Theme = "default" | "terminal";
+type Theme = "default" | "terminal" | "crusade";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabName>("squad");
@@ -27,16 +27,21 @@ export default function App() {
   const [currentSectorId, setCurrentSectorId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("dc-theme");
-    return (saved as Theme) || "default";
+    if (saved === "terminal" || saved === "crusade") {
+      return saved;
+    }
+    return "default";
   });
 
   // Apply theme on mount and when it changes
   useEffect(() => {
     const root = document.documentElement;
+    root.classList.remove("theme-terminal", "theme-crusade");
     if (theme === "terminal") {
       root.classList.add("theme-terminal");
-    } else {
-      root.classList.remove("theme-terminal");
+    }
+    if (theme === "crusade") {
+      root.classList.add("theme-crusade");
     }
     localStorage.setItem("dc-theme", theme);
   }, [theme]);
@@ -140,6 +145,13 @@ export default function App() {
             title="Terminal theme"
           >
             TERMINAL
+          </button>
+          <button
+            className={`dc-theme-btn ${theme === "crusade" ? "active" : ""}`}
+            onClick={() => setTheme("crusade")}
+            title="Crusade theme"
+          >
+            CRUSADE
           </button>
         </div>
 
