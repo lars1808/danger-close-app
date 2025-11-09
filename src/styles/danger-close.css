@@ -27,7 +27,7 @@
   --grazed: #f7dc6f;
   --wounded: #f5b041;
   --bleeding: #e74c3c;
-  --dead: #aab2bd;
+  --dead: #000000;
   
   /* Font and effects */
   --font-main: "Outfit", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -62,7 +62,7 @@
   --grazed: #00cc00;
   --wounded: #009900;
   --bleeding: #004d00;
-  --dead: #003300;
+  --dead: #000000;
   
   /* Monospace terminal font */
 --font-main: "VT323", monospace;
@@ -384,8 +384,7 @@ h1, h2, h3 {
 
 .dc-mission-summary-details dt {
   font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-dim);
 }
 
@@ -1263,69 +1262,74 @@ h1, h2, h3 {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
 }
 
-.dc-status-indicator {
-  width: 32px;
-  min-width: 32px;
-  flex: 0 0 32px;
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.18);
+.dc-status-control {
+  position: relative;
+  display: inline-flex;
+}
+
+.dc-status-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  min-width: 148px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #1b1d1f;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
 }
 
-.dc-status-indicator:hover {
-  transform: scale(1.05);
+.dc-status-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
-.dc-status-indicator:focus-visible {
+.dc-status-button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
 
-.dc-status-indicator__icon {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.3);
+.dc-status-button__label {
+  white-space: nowrap;
 }
 
-.dc-status-indicator--ok {
+.dc-status-button__chevron {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.dc-status-button--ok {
   background: color-mix(in oklab, var(--ok) 75%, #0c0d0e);
-  border-color: color-mix(in oklab, var(--ok) 65%, #040404);
+  border-color: color-mix(in oklab, var(--ok) 60%, #040404);
 }
 
-.dc-status-indicator--grazed {
-  background: color-mix(in oklab, var(--grazed) 70%, #0c0d0e);
-  border-color: color-mix(in oklab, var(--grazed) 55%, #040404);
+.dc-status-button--grazed {
+  background: color-mix(in oklab, var(--grazed) 68%, #0c0d0e);
+  border-color: color-mix(in oklab, var(--grazed) 52%, #040404);
 }
 
-.dc-status-indicator--wounded {
-  background: color-mix(in oklab, var(--wounded) 70%, #0c0d0e);
-  border-color: color-mix(in oklab, var(--wounded) 55%, #040404);
+.dc-status-button--wounded {
+  background: color-mix(in oklab, var(--wounded) 68%, #0c0d0e);
+  border-color: color-mix(in oklab, var(--wounded) 52%, #040404);
 }
 
-.dc-status-indicator--bleeding {
-  background: color-mix(in oklab, var(--bleeding) 65%, #0c0d0e);
-  border-color: color-mix(in oklab, var(--bleeding) 55%, #040404);
+.dc-status-button--bleeding {
+  background: color-mix(in oklab, var(--bleeding) 62%, #0c0d0e);
+  border-color: color-mix(in oklab, var(--bleeding) 50%, #040404);
 }
 
-.dc-status-indicator--dead {
-  background: #1b1c1e;
-  border-color: #050505;
-}
-
-.dc-engagement-squad-status-text {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--text-dim);
+.dc-status-button--dead {
+  background: #000000;
+  border-color: #000000;
 }
 
 .dc-status-menu {
@@ -1340,7 +1344,7 @@ h1, h2, h3 {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(10, 11, 14, 0.97);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-  min-width: 180px;
+  min-width: max(180px, 100%);
   z-index: 40;
 }
 
@@ -1416,7 +1420,7 @@ h1, h2, h3 {
 }
 
 .dc-status-menu-option--dead .dc-status-menu-option-dot {
-  background: #1b1c1e;
+  background: #000000;
 }
 
 .dc-engagement-squad-main {
@@ -3373,89 +3377,6 @@ input[type="checkbox"]:hover {
 /* Prevent drag when editing */
 .dc-log-entry[draggable="false"] {
   cursor: auto;
-}
-
-/* ==================== STATUS DROPDOWN ==================== */
-.dc-status-select {
-  width: 100%;
-  padding: 8px 12px;
-  background: #0c0d0e;
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: border-color 0.15s ease, background 0.15s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23e9ecef' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
-}
-
-.dc-status-select:focus {
-  border-color: var(--focus);
-  outline: none;
-  box-shadow: 0 0 0 3px rgb(53 176 255 / 0.15);
-}
-
-/* Option styling - colored backgrounds */
-.dc-status-select option {
-  padding: 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.dc-status-select option[value="OK"] {
-  background: #58d68d;
-  color: #18190a;
-}
-
-.dc-status-select option[value="Grazed"] {
-  background: #f7dc6f;
-  color: #18190a;
-}
-
-.dc-status-select option[value="Wounded"] {
-  background: #f5b041;
-  color: #1d1207;
-}
-
-.dc-status-select option[value="Bleeding Out"] {
-  background: #e74c3c;
-  color: #180707;
-}
-
-.dc-status-select option[value="Dead"] {
-  background: #aab2bd;
-  color: #0a0a0a;
-}
-
-/* ==================== STATUS DROPDOWN - SELECTED STATE ==================== */
-.dc-status-select[value="OK"] {
-  background-color: color-mix(in oklab, var(--ok) 25%, #0c0d0e);
-  color: #dff7ea;
-}
-
-.dc-status-select[value="Grazed"] {
-  background-color: color-mix(in oklab, var(--grazed) 28%, #0c0d0e);
-  color: #18190a;
-}
-
-.dc-status-select[value="Wounded"] {
-  background-color: color-mix(in oklab, var(--wounded) 30%, #0c0d0e);
-  color: #1d1207;
-}
-
-.dc-status-select[value="Bleeding Out"] {
-  background-color: color-mix(in oklab, var(--bleeding) 26%, #0c0d0e);
-  color: #180707;
-}
-
-.dc-status-select[value="Dead"] {
-  background-color: #353a40;
-  color: #cfd6dc;
 }
 
 /* ==================== THEME TOGGLE ==================== */
