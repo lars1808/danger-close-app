@@ -1962,8 +1962,14 @@ export default function EngagementTab(props: EngagementTabProps) {
                         const { id, trooper, displayName, isUnavailable, statusDetail } = intentEntry;
                         const selectId = `${id}-intent`;
 
+                        const itemClassName = `dc-planning-intent-item ${
+                          isUnavailable
+                            ? "dc-planning-intent-item--unavailable"
+                            : "dc-planning-intent-item--with-select"
+                        }`;
+
                         return (
-                          <li key={id} className="dc-planning-intent-item">
+                          <li key={id} className={itemClassName}>
                             {isUnavailable ? (
                               <>
                                 <span className="dc-planning-intent-name">{displayName}</span>
