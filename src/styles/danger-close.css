@@ -1400,6 +1400,95 @@ h1, h2, h3 {
   font-weight: 600;
 }
 
+.dc-planning-tactics-intro {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.dc-planning-tactics-threat {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.dc-planning-tactics-roll {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dc-planning-tactics-roll:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.dc-planning-tactics-table {
+  width: 100%;
+  margin-top: 18px;
+  border-collapse: collapse;
+}
+
+.dc-planning-tactics-row {
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.dc-planning-tactics-row th,
+.dc-planning-tactics-row td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dc-planning-tactics-row:last-child th,
+.dc-planning-tactics-row:last-child td {
+  border-bottom: none;
+}
+
+.dc-planning-tactics-effect {
+  width: 55%;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dc-planning-tactics-effect strong {
+  color: var(--accent);
+}
+
+.dc-planning-tactics-description {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+
+.dc-planning-tactics-row.is-highlighted {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  transform: translateZ(0) scale(1.005);
+}
+
+.dc-planning-tactics-row.is-highlighted .dc-planning-tactics-description {
+  color: var(--text);
+}
+
+.dc-planning-tactics-row.is-rolling {
+  animation: dc-tactic-flash 0.4s linear infinite alternate;
+}
+
+@keyframes dc-tactic-flash {
+  from {
+    filter: brightness(1.1);
+  }
+  to {
+    filter: brightness(1.4);
+  }
+}
+
 .dc-engagement-squad {
   display: flex;
   flex-direction: column;

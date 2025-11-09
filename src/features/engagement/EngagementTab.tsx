@@ -93,6 +93,72 @@ const DEFENSIVE_POSITIONS: PositionOption<T.DefensivePosition>[] = [
   { value: "Flanked", tone: "negative", detail: "Injury on 1-3" },
 ];
 
+type TacticTableEntry = {
+  id: string;
+  effect: React.ReactNode;
+  description: string;
+};
+
+const TACTIC_TABLE: readonly TacticTableEntry[] = [
+  {
+    id: "quick-flank",
+    effect: (
+      <>
+        <strong>Quick Flank:</strong> One random <strong>Fortified</strong> Trooper is now {""}
+        <strong>Flanked</strong>.
+      </>
+    ),
+    description:
+      "An enemy unit slips past defenses to threaten a fortified position.",
+  },
+  {
+    id: "encircle",
+    effect: (
+      <>
+        <strong>Encircle:</strong> All <strong>Fortified</strong> Troopers are now <strong>In Cover</strong>.
+      </>
+    ),
+    description: "The squad’s positions are compromised by encroaching enemies.",
+  },
+  {
+    id: "push-forward",
+    effect: (
+      <>
+        <strong>Push Forward:</strong> All Troopers reduce their <strong>Defensive Position by 1 step</strong>.
+      </>
+    ),
+    description: "The enemy presses the attack, forcing everyone to adjust or take fire.",
+  },
+  {
+    id: "reposition",
+    effect: (
+      <>
+        <strong>Reposition:</strong> One <strong>Flanking</strong> Trooper is now <strong>Engaged</strong>.
+      </>
+    ),
+    description: "An enemy maneuver cuts off their advance route.",
+  },
+  {
+    id: "fall-back",
+    effect: (
+      <>
+        <strong>Fall Back:</strong> All <strong>Flanking</strong> Troopers are now <strong>Engaged</strong>.
+      </>
+    ),
+    description: "The squad’s flanking efforts collapse under enemy counter-pressure.",
+  },
+  {
+    id: "scatter",
+    effect: (
+      <>
+        <strong>Scatter:</strong> A grenade lands at the feet of a random Trooper. They must {""}
+        <strong>Move</strong> during the next Exchange or take <strong>+1 Injury</strong>.
+      </>
+    ),
+    description: "The battlefield erupts in chaos - act fast or pay the price.",
+  },
+];
+
 const TROOPER_INTENTS: { value: T.TrooperIntent; label: string }[] = [
   { value: "Fire", label: "Fire" },
   { value: "Move", label: "Move" },
@@ -125,6 +191,9 @@ const ADVANCE_OUTCOME_POSITIONS: Partial<
 
 const ADVANCE_ROLL_TICK_INTERVAL = 120;
 const ADVANCE_ROLL_ANIMATION_DURATION = 900;
+
+const TACTIC_ROLL_TICK_INTERVAL = 120;
+const TACTIC_ROLL_ANIMATION_DURATION = 1200;
 
 function determineAdvanceOutcome(total: number, threat: ThreatContent): AdvanceOutcome {
   if (threat === "TL 4") {
@@ -1113,6 +1182,71 @@ export default function EngagementTab(props: EngagementTabProps) {
     () => new Map(),
   );
 
+  const [highlightedTacticId, setHighlightedTacticId] = React.useState<string | null>(null);
+  const [isRollingTactic, setIsRollingTactic] = React.useState(false);
+  const tacticRollIntervalRef = React.useRef<ReturnType<typeof window.setInterval> | null>(null);
+  const tacticRollTimeoutRef = React.useRef<ReturnType<typeof window.setTimeout> | null>(null);
+
+  const pickRandomTactic = React.useCallback(() => {
+    const index = Math.floor(Math.random() * TACTIC_TABLE.length);
+    return TACTIC_TABLE[index];
+  }, []);
+
+  const clearTacticRollTimers = React.useCallback(() => {
+    if (tacticRollIntervalRef.current !== null) {
+      window.clearInterval(tacticRollIntervalRef.current);
+      tacticRollIntervalRef.current = null;
+    }
+
+    if (tacticRollTimeoutRef.current !== null) {
+      window.clearTimeout(tacticRollTimeoutRef.current);
+      tacticRollTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleTacticRoll = React.useCallback(() => {
+    if (threatLevel === null || isRollingTactic) {
+      return;
+    }
+
+    setIsRollingTactic(true);
+
+    const initialSelection = pickRandomTactic();
+    setHighlightedTacticId(initialSelection.id);
+
+    tacticRollIntervalRef.current = window.setInterval(() => {
+      const nextSelection = pickRandomTactic();
+      setHighlightedTacticId(nextSelection.id);
+    }, TACTIC_ROLL_TICK_INTERVAL);
+
+    tacticRollTimeoutRef.current = window.setTimeout(() => {
+      clearTacticRollTimers();
+      const finalSelection = pickRandomTactic();
+      setHighlightedTacticId(finalSelection.id);
+      setIsRollingTactic(false);
+    }, TACTIC_ROLL_ANIMATION_DURATION);
+  }, [
+    clearTacticRollTimers,
+    isRollingTactic,
+    pickRandomTactic,
+    threatLevel,
+  ]);
+
+  React.useEffect(() => {
+    if (activePlanningTab !== "tactics" && isRollingTactic) {
+      clearTacticRollTimers();
+      setIsRollingTactic(false);
+    }
+  }, [activePlanningTab, clearTacticRollTimers, isRollingTactic]);
+
+  React.useEffect(() => () => clearTacticRollTimers(), [clearTacticRollTimers]);
+
+  React.useEffect(() => {
+    if (threatLevel === null) {
+      setHighlightedTacticId(null);
+    }
+  }, [threatLevel]);
+
   const activeTrooperIntents = React.useMemo(
     () =>
       deployedSquad.map((trooper) => {
@@ -1998,7 +2132,49 @@ export default function EngagementTab(props: EngagementTabProps) {
               aria-labelledby="dc-planning-tab-tactics"
               hidden={activePlanningTab !== "tactics"}
               className="dc-planning-panel"
-            />
+            >
+              {activePlanningTab === "tactics" ? (
+                <>
+                  <p className="dc-planning-tactics-intro">
+                    Roll 1d6. If it&apos;s equal or under {" "}
+                    <span className="dc-planning-tactics-threat">
+                      {threatLevel === null ? "—" : threatLevel}
+                    </span>
+                    , {" "}
+                    <button
+                      type="button"
+                      className="dc-planning-tactics-roll"
+                      onClick={handleTacticRoll}
+                      disabled={threatLevel === null || isRollingTactic}
+                    >
+                      roll for tactic
+                    </button>
+                    .
+                  </p>
+                  <table className="dc-planning-tactics-table">
+                    <tbody>
+                      {TACTIC_TABLE.map((entry) => {
+                        const isHighlighted = highlightedTacticId === entry.id;
+                        const rowClassName = `dc-planning-tactics-row${
+                          isHighlighted ? " is-highlighted" : ""
+                        }${isRollingTactic && isHighlighted ? " is-rolling" : ""}`;
+
+                        return (
+                          <tr key={entry.id} className={rowClassName}>
+                            <th scope="row" className="dc-planning-tactics-effect">
+                              {entry.effect}
+                            </th>
+                            <td className="dc-planning-tactics-description">
+                              <em>{entry.description}</em>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
+              ) : null}
+            </div>
           </div>
         </article>
       ) : null}
