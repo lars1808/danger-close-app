@@ -1358,13 +1358,33 @@ h1, h2, h3 {
 }
 
 .dc-planning-intent-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(34, 36, 42, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dc-planning-intent-item--with-select {
+  align-items: center;
+}
+
+.dc-planning-intent-item--unavailable {
+  align-items: flex-start;
+}
+
+@media (min-width: 640px) {
+  .dc-planning-intent-item--with-select {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+}
+
+.dc-planning-intent-item--with-select .dc-planning-intent-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .dc-planning-intent-name {
