@@ -1372,11 +1372,10 @@ h1, h2, h3 {
 }
 
 .dc-planning-defense-list {
-  flex-direction: row;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 6px;
+  overflow: hidden;
 }
 
 .dc-planning-intent-item {
@@ -1390,8 +1389,13 @@ h1, h2, h3 {
 }
 
 .dc-planning-defense-item {
-  flex: 0 0 auto;
-  min-width: 220px;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  min-width: 0;
+}
+.dc-planning-defense-item .dc-planning-intent-name {
+  font-size: 1rem;
 }
 
 .dc-planning-intent-item--with-select {
