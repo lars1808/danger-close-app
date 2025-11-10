@@ -82,6 +82,22 @@ type PositionOption<TPosition> = {
   injuryThreshold?: number;
 };
 
+type TrooperDefenseRow = {
+  id: string;
+  name: string;
+  modifiers: string;
+  resultLabel: string;
+  resultTone:
+    | "shielded"
+    | "injury"
+    | "status-ok"
+    | "status-grazed"
+    | "status-wounded"
+    | "status-bleeding"
+    | "status-dead";
+  appearance?: "fortified" | "in-cover" | "flanked";
+};
+
 const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
   { value: "Flanking", tone: "positive", detail: "+1d6 when Firing" },
   { value: "Engaged", tone: "caution", detail: "No bonus when Firing" },
@@ -1282,7 +1298,7 @@ export default function EngagementTab(props: EngagementTabProps) {
     [deployedSquad],
   );
 
-  const activeTrooperDefenses = React.useMemo(() => {
+  const activeTrooperDefenses = React.useMemo<TrooperDefenseRow[]>(() => {
     const fallbackOption =
       DEFENSIVE_POSITIONS.find((option) => option.value === "In Cover") ??
       ({ value: "In Cover", tone: "caution", detail: "Injury on 1-2", injuryThreshold: 2 } as const);
@@ -1291,12 +1307,14 @@ export default function EngagementTab(props: EngagementTabProps) {
       const displayName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
       const isBleedingOutOrDead = trooper.status === "Bleeding Out" || trooper.status === "Dead";
       if (isBleedingOutOrDead) {
+        const statusDetail = STATUS_DETAILS[trooper.status];
+        const resultTone = `status-${statusDetail.tone}` as TrooperDefenseRow["resultTone"];
         return {
           id: `trooper-${trooper.storageIndex}`,
           name: displayName,
-          detail: (
-            <span className="dc-planning-intent-detail">{STATUS_DETAILS[trooper.status].label}</span>
-          ),
+          modifiers: "—",
+          resultLabel: statusDetail.label,
+          resultTone,
         };
       }
 
@@ -1323,30 +1341,19 @@ export default function EngagementTab(props: EngagementTabProps) {
         return `Injury on ${activeThreshold} or lower`;
       })();
 
+      const modifiers = [
+        defensiveOption.value,
+        trooper.armorId === "heavy" ? "Heavy Armor" : null,
+      ]
+        .filter(Boolean)
+        .join(" + ");
+
       return {
         id: `trooper-${trooper.storageIndex}`,
         name: displayName,
-        detail: (
-          <div className="dc-planning-defense-detail">
-            <span className="dc-planning-defense-position">
-              {defensiveOption.value}
-              {trooper.armorId === "heavy" ? " + Heavy Armor" : ""}
-            </span>
-            <div className="dc-planning-defense-thresholds">
-              <span
-                className={[
-                  "dc-planning-defense-threshold",
-                  "is-active",
-                  activeThreshold <= 0 ? "is-shielded" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {activeThresholdLabel}
-              </span>
-            </div>
-          </div>
-        ),
+        modifiers,
+        resultLabel: activeThresholdLabel,
+        resultTone: (activeThreshold <= 0 ? "shielded" : "injury") as TrooperDefenseRow["resultTone"],
         appearance:
           defensiveOption.value === "Fortified"
             ? "fortified"
@@ -2310,24 +2317,63 @@ export default function EngagementTab(props: EngagementTabProps) {
                     {defenseThreatMessage ?? "Select a threat level sector to view defensive risks."}
                   </p>
                   <div className="dc-planning-intent">
-                    <ul className="dc-planning-intent-list dc-planning-defense-list">
+                    <div className="dc-planning-defense-table" role="table" aria-label="Trooper defensive risks">
+                      <div className="dc-planning-defense-row dc-planning-defense-header" role="row">
+                        <span
+                          className="dc-planning-defense-cell dc-planning-defense-cell--name"
+                          role="columnheader"
+                        >
+                          Trooper
+                        </span>
+                        <span
+                          className="dc-planning-defense-cell dc-planning-defense-cell--modifiers"
+                          role="columnheader"
+                        >
+                          Modifiers
+                        </span>
+                        <span
+                          className="dc-planning-defense-cell dc-planning-defense-cell--result"
+                          role="columnheader"
+                        >
+                          Result
+                        </span>
+                      </div>
                       {activeTrooperDefenses.map((defense) => {
-                        const defenseItemClassName = [
-                          "dc-planning-intent-item",
-                          "dc-planning-defense-item",
-                          defense.appearance ? `dc-planning-defense-item--${defense.appearance}` : null,
+                        const defenseRowClassName = [
+                          "dc-planning-defense-row",
+                          defense.appearance ? `dc-planning-defense-row--${defense.appearance}` : null,
                         ]
                           .filter(Boolean)
                           .join(" ");
 
                         return (
-                          <li key={defense.id} className={defenseItemClassName}>
-                            <span className="dc-planning-intent-name">{defense.name}</span>
-                            {defense.detail}
-                          </li>
+                          <div key={defense.id} className={defenseRowClassName} role="row">
+                            <span
+                              className="dc-planning-defense-cell dc-planning-defense-cell--name"
+                              role="cell"
+                            >
+                              {defense.name}
+                            </span>
+                            <span
+                              className="dc-planning-defense-cell dc-planning-defense-cell--modifiers"
+                              role="cell"
+                            >
+                              {defense.modifiers}
+                            </span>
+                            <span
+                              className="dc-planning-defense-cell dc-planning-defense-cell--result"
+                              role="cell"
+                            >
+                              <span
+                                className={`dc-planning-defense-chip dc-planning-defense-chip--${defense.resultTone}`}
+                              >
+                                {defense.resultLabel}
+                              </span>
+                            </span>
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
                   </div>
                 </>
               ) : null}

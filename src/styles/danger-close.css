@@ -1371,14 +1371,6 @@ h1, h2, h3 {
   gap: 10px;
 }
 
-.dc-planning-defense-list {
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-
 .dc-planning-intent-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1387,11 +1379,6 @@ h1, h2, h3 {
   border-radius: 10px;
   background: rgba(34, 36, 42, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.dc-planning-defense-item {
-  flex: 0 0 auto;
-  min-width: 220px;
 }
 
 .dc-planning-intent-item--with-select {
@@ -1424,24 +1411,74 @@ h1, h2, h3 {
   font-weight: 500;
 }
 
-.dc-planning-defense-detail {
+
+.dc-planning-defense-table {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
-.dc-planning-defense-position {
+.dc-planning-defense-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(34, 36, 42, 0.72);
+  border: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.dc-planning-defense-header {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 12px;
 }
 
-.dc-planning-defense-thresholds {
+.dc-planning-defense-cell {
   display: flex;
-  flex-wrap: nowrap;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
-.dc-planning-defense-threshold {
+
+.dc-planning-defense-row:not(.dc-planning-defense-header) .dc-planning-defense-cell--name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dc-planning-defense-row:not(.dc-planning-defense-header) .dc-planning-defense-cell--modifiers {
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.dc-planning-defense-header .dc-planning-defense-cell--modifiers {
+  justify-content: flex-start;
+}
+
+.dc-planning-defense-header .dc-planning-defense-cell {
+  color: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dc-planning-defense-cell--result {
+  justify-content: flex-end;
+  justify-self: end;
+}
+
+.dc-planning-defense-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1451,25 +1488,58 @@ h1, h2, h3 {
   font-size: 0.75rem;
   line-height: 1.2;
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
 }
 
-.dc-planning-defense-threshold.is-active {
+.dc-planning-defense-chip--injury {
   background: rgba(221, 161, 94, 0.2);
   border-color: rgba(221, 161, 94, 0.35);
-  color: var(--text);
 }
 
-.dc-planning-defense-threshold.is-shielded {
+.dc-planning-defense-chip--shielded {
   background: rgba(96, 108, 56, 0.28);
   border-color: rgba(96, 108, 56, 0.45);
-  color: var(--text);
 }
 
-.dc-planning-defense-threshold.is-active.is-shielded {
-  background: rgba(96, 108, 56, 0.36);
-  border-color: rgba(96, 108, 56, 0.55);
+.dc-planning-defense-chip--status-ok {
+  background: color-mix(in srgb, var(--ok) 22%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+}
+
+.dc-planning-defense-chip--status-grazed {
+  background: color-mix(in srgb, var(--grazed) 22%, transparent);
+  border-color: color-mix(in srgb, var(--grazed) 45%, transparent);
+}
+
+.dc-planning-defense-chip--status-wounded {
+  background: color-mix(in srgb, var(--wounded) 22%, transparent);
+  border-color: color-mix(in srgb, var(--wounded) 45%, transparent);
+}
+
+.dc-planning-defense-chip--status-bleeding {
+  background: color-mix(in srgb, var(--bleeding) 22%, transparent);
+  border-color: color-mix(in srgb, var(--bleeding) 45%, transparent);
+}
+
+.dc-planning-defense-chip--status-dead {
+  background: color-mix(in srgb, var(--dead) 28%, transparent);
+  border-color: color-mix(in srgb, var(--dead) 55%, transparent);
+}
+
+.dc-planning-defense-row--fortified {
+  background: color-mix(in srgb, var(--threat-tl1) 22%, rgba(34, 36, 42, 0.72));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--threat-tl1) 55%, rgba(255, 255, 255, 0.08));
+}
+
+.dc-planning-defense-row--in-cover {
+  background: color-mix(in srgb, var(--threat-tl2) 20%, rgba(34, 36, 42, 0.72));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--threat-tl2) 55%, rgba(255, 255, 255, 0.08));
+}
+
+.dc-planning-defense-row--flanked {
+  background: color-mix(in srgb, var(--threat-tl4) 24%, rgba(34, 36, 42, 0.72));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--threat-tl4) 55%, rgba(255, 255, 255, 0.08));
 }
 
 .dc-planning-intent-controls {
