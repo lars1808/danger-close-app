@@ -1420,9 +1420,8 @@ h1, h2, h3 {
 }
 
 .dc-planning-defense-row {
-  --dc-defense-modifier-width: clamp(240px, 34vw, 320px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--dc-defense-modifier-width) max-content;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
@@ -1460,11 +1459,6 @@ h1, h2, h3 {
   color: var(--text-dim);
   font-weight: 500;
   font-size: 0.9rem;
-}
-
-.dc-planning-defense-cell--modifiers {
-  width: var(--dc-defense-modifier-width);
-  justify-self: stretch;
 }
 
 .dc-planning-defense-header .dc-planning-defense-cell--modifiers {
