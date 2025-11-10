@@ -1420,14 +1420,16 @@ h1, h2, h3 {
 }
 
 .dc-planning-defense-row {
+  --dc-defense-modifier-width: clamp(240px, 34vw, 320px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) var(--dc-defense-modifier-width) max-content;
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(34, 36, 42, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .dc-planning-defense-header {
@@ -1460,6 +1462,15 @@ h1, h2, h3 {
   font-size: 0.9rem;
 }
 
+.dc-planning-defense-cell--modifiers {
+  width: var(--dc-defense-modifier-width);
+  justify-self: stretch;
+}
+
+.dc-planning-defense-header .dc-planning-defense-cell--modifiers {
+  justify-content: flex-start;
+}
+
 .dc-planning-defense-header .dc-planning-defense-cell {
   color: inherit;
   font-size: 0.72rem;
@@ -1470,6 +1481,7 @@ h1, h2, h3 {
 
 .dc-planning-defense-cell--result {
   justify-content: flex-end;
+  justify-self: end;
 }
 
 .dc-planning-defense-chip {
@@ -1522,18 +1534,18 @@ h1, h2, h3 {
 }
 
 .dc-planning-defense-row--fortified {
-  border-color: color-mix(in srgb, var(--threat-tl1) 55%, transparent);
   background: color-mix(in srgb, var(--threat-tl1) 22%, rgba(34, 36, 42, 0.72));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--threat-tl1) 55%, rgba(255, 255, 255, 0.08));
 }
 
 .dc-planning-defense-row--in-cover {
-  border-color: color-mix(in srgb, var(--threat-tl2) 55%, transparent);
   background: color-mix(in srgb, var(--threat-tl2) 20%, rgba(34, 36, 42, 0.72));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--threat-tl2) 55%, rgba(255, 255, 255, 0.08));
 }
 
 .dc-planning-defense-row--flanked {
-  border-color: color-mix(in srgb, var(--threat-tl4) 55%, transparent);
   background: color-mix(in srgb, var(--threat-tl4) 24%, rgba(34, 36, 42, 0.72));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--threat-tl4) 55%, rgba(255, 255, 255, 0.08));
 }
 
 .dc-planning-intent-controls {
