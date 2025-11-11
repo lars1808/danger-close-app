@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import SquadTable from "./features/squad/SquadTable";
-import LogTab from "./features/log/LogTab";
+import LogFlyout from "./features/log/LogFlyout";
 import MissionSetup, {
   MISSION_STORAGE_KEY,
   normalizeMission,
@@ -11,7 +11,7 @@ import "./styles/danger-close.css";
 import * as T from "./features/squad/types";
 import RulesReferencePanel from "./features/rules/RulesReferencePanel";
 
-type TabName = "squad" | "mission" | "engagement" | "log";
+type TabName = "squad" | "mission" | "engagement";
 type Theme = "default" | "terminal" | "crusade";
 
 export default function App() {
@@ -34,6 +34,7 @@ export default function App() {
     return "default";
   });
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [isLogOpen, setIsLogOpen] = useState(false);
 
   // Apply theme on mount and when it changes
   useEffect(() => {
@@ -96,13 +97,13 @@ export default function App() {
       return [...prevEntries, newEntry];
     });
 
-    if (activeTab !== "log") {
+    if (!isLogOpen) {
       triggerLogAttention();
     }
   }
 
   useEffect(() => {
-    if (activeTab === "log") {
+    if (isLogOpen) {
       setLogAttention(false);
       if (logAttentionTimeoutRef.current) {
         clearTimeout(logAttentionTimeoutRef.current);
@@ -115,7 +116,7 @@ export default function App() {
         logAttentionTimeoutRef.current = null;
       }
     };
-  }, [activeTab]);
+  }, [isLogOpen]);
 
   const handleAdvanceToEngagement = useCallback((sectorId: string) => {
     setCurrentSectorId(sectorId);
@@ -131,6 +132,22 @@ export default function App() {
 
   return (
     <main>
+      <button
+        type="button"
+        className={`log-tab ${logAttention ? "log-tab--notify" : ""}`}
+        onClick={() => setIsLogOpen(true)}
+        aria-expanded={isLogOpen}
+        aria-controls="log-panel"
+      >
+        Mission Log
+      </button>
+      {isLogOpen && (
+        <LogFlyout
+          entries={logEntries}
+          onUpdateEntries={setLogEntries}
+          onClose={() => setIsLogOpen(false)}
+        />
+      )}
       <button
         type="button"
         className="rules-tab"
@@ -201,14 +218,6 @@ export default function App() {
           >
             ENGAGEMENT
           </button>
-          <button
-            className={`dc-tab-btn ${
-              activeTab === "log" ? "active" : ""
-            } ${logAttention ? "dc-tab-btn--notify" : ""}`}
-            onClick={() => setActiveTab("log")}
-          >
-            LOG
-          </button>
         </nav>
 
         {/* TAB CONTENT */}
@@ -238,7 +247,6 @@ export default function App() {
             onAddLog={addLogEntry}
           />
         )}
-        {activeTab === "log" && <LogTab entries={logEntries} onUpdateEntries={setLogEntries} />}
       </div>
     </main>
   );
