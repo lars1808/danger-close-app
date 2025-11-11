@@ -751,9 +751,10 @@ export default function EngagementTab(props: EngagementTabProps) {
           }
 
           const base: Partial<T.Trooper> = entry ? { ...entry } : {};
-          const existing = Number.isFinite(base[key] as number)
+          const rawExisting = Number.isFinite(base[key] as number)
             ? (base[key] as number)
             : trooper[key];
+          const existing = clampZeroToThree(rawExisting);
           const nextValue = clampZeroToThree(existing + delta);
           if (nextValue === existing) {
             return entry;
