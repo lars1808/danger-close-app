@@ -4253,7 +4253,7 @@ input[type="checkbox"]:hover {
 /* ==================== LOG FLYOUT ==================== */
 .log-tab {
   position: fixed;
-  top: 40%;
+  top: 30%;
   right: 0;
   transform: translateY(-50%);
   writing-mode: vertical-rl;
@@ -4378,7 +4378,7 @@ input[type="checkbox"]:hover {
 /* ==================== RULES REFERENCE PANEL ==================== */
 .rules-tab {
   position: fixed;
-  top: 50%;
+  top: 60%;
   right: 0;
   transform: translateY(-50%);
   writing-mode: vertical-rl;
