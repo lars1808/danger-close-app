@@ -62,6 +62,7 @@ export interface Trooper {
   defensivePosition?: DefensivePosition;
   intent?: TrooperIntent | null;
   coveringFireTargetId?: number | null;  // ID of trooper being covered when intent is Covering Fire
+  atRisk?: boolean;  // Marked at risk from Success at a Cost
 }
 
 export const STATUS_ORDER: Status[] = ['OK', 'Grazed', 'Wounded', 'Bleeding Out', 'Dead'];
