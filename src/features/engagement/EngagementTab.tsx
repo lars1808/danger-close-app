@@ -331,6 +331,7 @@ interface NormalizedTrooper {
   offensivePosition: T.OffensivePosition;
   defensivePosition: T.DefensivePosition;
   intent: T.TrooperIntent | null;
+  coveringFireTargetId: number | null;
 }
 
 interface TrooperOffenseContribution {
@@ -406,6 +407,9 @@ export default function EngagementTab(props: EngagementTabProps) {
       const intent = TROOPER_INTENT_VALUES.includes(trooper?.intent as T.TrooperIntent)
         ? (trooper?.intent as T.TrooperIntent)
         : null;
+      const coveringFireTargetId = typeof trooper?.coveringFireTargetId === "number"
+        ? trooper.coveringFireTargetId
+        : null;
 
       return {
         storageIndex: index,
@@ -421,6 +425,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         offensivePosition,
         defensivePosition,
         intent,
+        coveringFireTargetId,
       };
     });
   }, [clampZeroToThree, storedSquad]);
@@ -839,8 +844,8 @@ export default function EngagementTab(props: EngagementTabProps) {
   );
 
   const handleIntentChange = React.useCallback(
-    (trooper: NormalizedTrooper, nextIntent: T.TrooperIntent | null) => {
-      if (trooper.intent === nextIntent) {
+    (trooper: NormalizedTrooper, nextIntent: T.TrooperIntent | null, coveringFireTargetId?: number | null) => {
+      if (trooper.intent === nextIntent && trooper.coveringFireTargetId === (coveringFireTargetId ?? null)) {
         return;
       }
 
@@ -859,6 +864,7 @@ export default function EngagementTab(props: EngagementTabProps) {
 
             const next = { ...base };
             delete next.intent;
+            delete next.coveringFireTargetId;
             if (trooper.storedId !== null) {
               next.id = trooper.storedId;
             }
@@ -869,6 +875,15 @@ export default function EngagementTab(props: EngagementTabProps) {
             ...base,
             intent: nextIntent,
           };
+
+          // Handle covering fire target
+          if (nextIntent === "Covering Fire" && coveringFireTargetId !== undefined) {
+            next.coveringFireTargetId = coveringFireTargetId;
+          } else {
+            // Clear covering fire target for non-covering fire intents
+            delete next.coveringFireTargetId;
+          }
+
           if (trooper.storedId !== null) {
             next.id = trooper.storedId;
           }
@@ -1227,6 +1242,10 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const [activePlanningTab, setActivePlanningTab] = React.useState<PlanningTab>("intent");
 
+  // Intent selection modal state
+  const [intentModalTrooper, setIntentModalTrooper] = React.useState<NormalizedTrooper | null>(null);
+  const [coveringFireModalTrooper, setCoveringFireModalTrooper] = React.useState<NormalizedTrooper | null>(null);
+
   const [offenseDiceBySector, setOffenseDiceBySector] = React.useState<
     Map<string, { value: number; isManual: boolean }>
   >(() => new Map());
@@ -1540,6 +1559,65 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   const offenseComputedTotal = React.useMemo(() => {
     return offenseContributions.reduce((sum, contribution) => sum + contribution.value, 0);
+  }, [offenseContributions]);
+
+  // Helper functions for intent selection
+  const getValidCoveringFireTargets = React.useCallback((currentTrooper: NormalizedTrooper) => {
+    return activeTroopers.filter(
+      (t) =>
+        t.storageIndex !== currentTrooper.storageIndex &&
+        (t.intent === "Move Up" || t.intent === "Fall Back" || t.intent === "Interact")
+    );
+  }, [activeTroopers]);
+
+  const getIntentDisplayText = React.useCallback((trooper: NormalizedTrooper) => {
+    if (!trooper.intent) {
+      return "Select Intent";
+    }
+
+    if (trooper.intent === "Covering Fire" && trooper.coveringFireTargetId !== null) {
+      const target = normalizedSquad.find((t) => t.storedId === trooper.coveringFireTargetId);
+      if (target) {
+        const targetName = target.name.trim() || `Trooper ${target.displayId}`;
+        return `Covering Fire: ${targetName}`;
+      }
+    }
+
+    return trooper.intent;
+  }, [normalizedSquad]);
+
+  const handleSelectIntent = React.useCallback((trooper: NormalizedTrooper, intent: T.TrooperIntent) => {
+    if (intent === "Covering Fire") {
+      // Check if there are valid targets
+      const validTargets = activeTroopers.filter(
+        (t) =>
+          t.storageIndex !== trooper.storageIndex &&
+          (t.intent === "Move Up" || t.intent === "Fall Back" || t.intent === "Interact")
+      );
+
+      if (validTargets.length > 0) {
+        // Open covering fire modal
+        setCoveringFireModalTrooper(trooper);
+        setIntentModalTrooper(null);
+      } else {
+        // No valid targets, just set the intent without a target
+        handleIntentChange(trooper, intent, null);
+        setIntentModalTrooper(null);
+      }
+    } else {
+      // For other intents, just set the intent
+      handleIntentChange(trooper, intent);
+      setIntentModalTrooper(null);
+    }
+  }, [activeTroopers, handleIntentChange]);
+
+  const handleSelectCoveringFireTarget = React.useCallback((trooper: NormalizedTrooper, targetId: number) => {
+    handleIntentChange(trooper, "Covering Fire", targetId);
+    setCoveringFireModalTrooper(null);
+  }, [handleIntentChange]);
+
+  const getOffenseContributionForTrooper = React.useCallback((trooper: NormalizedTrooper) => {
+    return offenseContributions.find((c) => c.trooperId === `trooper-${trooper.storageIndex}`);
   }, [offenseContributions]);
 
   const defenseThreatMessage = React.useMemo(() => {
@@ -2174,7 +2252,6 @@ export default function EngagementTab(props: EngagementTabProps) {
                       <ul className="dc-planning-intent-list">
                         {activeTrooperIntents.map((intentEntry) => {
                           const { id, trooper, displayName, isUnavailable, statusDetail } = intentEntry;
-                          const selectId = `${id}-intent`;
 
                           const itemClassName = `dc-planning-intent-item ${
                             isUnavailable
@@ -2191,25 +2268,14 @@ export default function EngagementTab(props: EngagementTabProps) {
                                 </>
                               ) : (
                                 <>
-                                  <label className="dc-planning-intent-name" htmlFor={selectId}>
-                                    {displayName}:
-                                  </label>
-                                  <select
-                                    id={selectId}
-                                    className="dc-select dc-engagement-intent-select"
-                                    value={trooper.intent ?? ""}
-                                    onChange={(event) => {
-                                      const value = event.currentTarget.value as T.TrooperIntent | "";
-                                      handleIntentChange(trooper, value === "" ? null : value);
-                                    }}
+                                  <span className="dc-planning-intent-name">{displayName}:</span>
+                                  <button
+                                    type="button"
+                                    className="dc-btn dc-btn--sm dc-intent-select-btn"
+                                    onClick={() => setIntentModalTrooper(trooper)}
                                   >
-                                    <option value="">Select intent</option>
-                                    {TROOPER_INTENTS.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    {getIntentDisplayText(trooper)}
+                                  </button>
                                 </>
                               )}
                             </li>
@@ -2826,6 +2892,158 @@ export default function EngagementTab(props: EngagementTabProps) {
       ) : (
         <p className="dc-engagement-empty">Select a Threat Level sector to review engagement intel.</p>
       )}
+
+      {/* Intent Selection Modal */}
+      {intentModalTrooper ? (
+        <div className="dc-modal-overlay" onClick={() => setIntentModalTrooper(null)}>
+          <div className="dc-modal dc-intent-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="dc-modal-title">
+              Select Intent: {intentModalTrooper.name.trim() || `Trooper ${intentModalTrooper.displayId}`}
+            </h3>
+            <div className="dc-intent-options">
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Fire")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Fire</span>
+                </div>
+                <p className="dc-intent-option-description">Contribute to the Offense Roll.</p>
+                {(() => {
+                  const contribution = getOffenseContributionForTrooper(intentModalTrooper);
+                  if (contribution && contribution.value !== 0) {
+                    return (
+                      <div className="dc-intent-option-detail">
+                        <div className="dc-intent-option-value">{formatSignedValue(contribution.value)}</div>
+                        <p className="dc-intent-option-breakdown">{contribution.detail}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </button>
+
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Move Up")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Move Up</span>
+                </div>
+                <p className="dc-intent-option-description">Improve Offensive Position.</p>
+              </button>
+
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Fall Back")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Fall Back</span>
+                </div>
+                <p className="dc-intent-option-description">Improve Defensive Position.</p>
+              </button>
+
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Covering Fire")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Covering Fire</span>
+                </div>
+                <p className="dc-intent-option-description">
+                  Add +1d6 to the Defense Roll of a Moving or Interacting Trooper.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Use Special Gear")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Use Special Gear</span>
+                </div>
+                <p className="dc-intent-option-description">Use special weapons or equipment.</p>
+              </button>
+
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Interact")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Interact</span>
+                </div>
+                <p className="dc-intent-option-description">
+                  Stabilize a Trooper who is Bleeding Out, or another battlefield interaction.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                className="dc-intent-option-btn"
+                onClick={() => handleSelectIntent(intentModalTrooper, "Disengage")}
+              >
+                <div className="dc-intent-option-header">
+                  <span className="dc-intent-option-title">Disengage</span>
+                </div>
+                <p className="dc-intent-option-description">Flee this Engagement.</p>
+              </button>
+            </div>
+            <div className="dc-modal-buttons">
+              <button type="button" className="dc-btn" onClick={() => setIntentModalTrooper(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Covering Fire Target Selection Modal */}
+      {coveringFireModalTrooper ? (
+        <div className="dc-modal-overlay" onClick={() => setCoveringFireModalTrooper(null)}>
+          <div className="dc-modal dc-covering-fire-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="dc-modal-title">
+              Select Trooper to Cover:{" "}
+              {coveringFireModalTrooper.name.trim() || `Trooper ${coveringFireModalTrooper.displayId}`}
+            </h3>
+            <p className="dc-modal-description">
+              Choose a Trooper who is Moving Up, Falling Back, or Interacting to provide Covering Fire.
+            </p>
+            <div className="dc-covering-fire-targets">
+              {(() => {
+                const validTargets = getValidCoveringFireTargets(coveringFireModalTrooper);
+                if (validTargets.length === 0) {
+                  return <p className="dc-covering-fire-empty">No valid targets available.</p>;
+                }
+                return validTargets.map((target) => {
+                  const targetName = target.name.trim() || `Trooper ${target.displayId}`;
+                  return (
+                    <button
+                      key={target.storageIndex}
+                      type="button"
+                      className="dc-btn dc-covering-fire-target-btn"
+                      onClick={() => handleSelectCoveringFireTarget(coveringFireModalTrooper, target.storedId!)}
+                    >
+                      <span className="dc-covering-fire-target-name">{targetName}</span>
+                      <span className="dc-covering-fire-target-intent">({target.intent})</span>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+            <div className="dc-modal-buttons">
+              <button type="button" className="dc-btn" onClick={() => setCoveringFireModalTrooper(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
