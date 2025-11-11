@@ -9,6 +9,7 @@ import MissionSetup, {
 import EngagementTab from "./features/engagement/EngagementTab";
 import "./styles/danger-close.css";
 import * as T from "./features/squad/types";
+import RulesReferencePanel from "./features/rules/RulesReferencePanel";
 
 type TabName = "squad" | "mission" | "engagement" | "log";
 type Theme = "default" | "terminal" | "crusade";
@@ -32,6 +33,7 @@ export default function App() {
     }
     return "default";
   });
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   // Apply theme on mount and when it changes
   useEffect(() => {
@@ -129,6 +131,18 @@ export default function App() {
 
   return (
     <main>
+      <button
+        type="button"
+        className="rules-tab"
+        onClick={() => setIsRulesOpen(true)}
+        aria-expanded={isRulesOpen}
+        aria-controls="rules-reference-panel"
+      >
+        Rules Reference
+      </button>
+      {isRulesOpen && (
+        <RulesReferencePanel onClose={() => setIsRulesOpen(false)} />
+      )}
       <div className="dc-container">
         {/* THEME TOGGLE */}
         <div className="dc-theme-toggle">
