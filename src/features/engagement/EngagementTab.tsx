@@ -178,7 +178,8 @@ const TACTIC_TABLE: readonly TacticTableEntry[] = [
 
 const TROOPER_INTENTS: { value: T.TrooperIntent; label: string }[] = [
   { value: "Fire", label: "Fire" },
-  { value: "Move", label: "Move" },
+  { value: "Move Up", label: "Move Up" },
+  { value: "Fall Back", label: "Fall Back" },
   { value: "Covering Fire", label: "Covering Fire" },
   { value: "Use Special Gear", label: "Use Special Gear" },
   { value: "Interact", label: "Interact" },

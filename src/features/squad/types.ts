@@ -5,7 +5,8 @@ export type DefensivePosition = 'Fortified' | 'In Cover' | 'Flanked';
 
 export type TrooperIntent =
   | 'Fire'
-  | 'Move'
+  | 'Move Up'
+  | 'Fall Back'
   | 'Covering Fire'
   | 'Use Special Gear'
   | 'Interact'
