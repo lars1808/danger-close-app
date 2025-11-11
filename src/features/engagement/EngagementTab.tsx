@@ -1333,19 +1333,42 @@ export default function EngagementTab(props: EngagementTabProps) {
         };
       }
 
-      const defensiveOption =
-        DEFENSIVE_POSITIONS.find((option) => option.value === trooper.defensivePosition) ??
-        fallbackOption;
-      const defensiveIndex = Math.max(
-        DEFENSIVE_POSITIONS.findIndex((option) => option.value === defensiveOption.value),
-        0,
-      );
+      // Check if intent overrides defensive position
+      let baseInjuryThreshold: number;
+      let positionLabel: string;
+      let appearance: "fortified" | "in-cover" | "flanked" | undefined;
+
+      if (trooper.intent === "Move Up") {
+        // Moving Up: counts as Flanked (Injury on 3)
+        baseInjuryThreshold = 3;
+        positionLabel = "Moving Up";
+        appearance = "flanked";
+      } else if (trooper.intent === "Fall Back") {
+        // Falling Back: counts as In Cover (Injury on 2)
+        baseInjuryThreshold = 2;
+        positionLabel = "Falling Back";
+        appearance = "in-cover";
+      } else {
+        // Use the defensive position normally
+        const defensiveOption =
+          DEFENSIVE_POSITIONS.find((option) => option.value === trooper.defensivePosition) ??
+          fallbackOption;
+        baseInjuryThreshold = defensiveOption.injuryThreshold ?? 2;
+        positionLabel = defensiveOption.value;
+        appearance =
+          defensiveOption.value === "Fortified"
+            ? "fortified"
+            : defensiveOption.value === "In Cover"
+              ? "in-cover"
+              : defensiveOption.value === "Flanked"
+                ? "flanked"
+                : undefined;
+      }
+
+      // Apply heavy armor modifier
       const heavyArmorModifier = trooper.armorId === "heavy" ? -1 : 0;
-      const thresholds = DEFENSIVE_POSITIONS.map((option) => {
-        const threshold = (option.injuryThreshold ?? 0) + heavyArmorModifier;
-        return Math.max(threshold, 0);
-      });
-      const activeThreshold = thresholds[defensiveIndex] ?? 0;
+      const activeThreshold = Math.max(baseInjuryThreshold + heavyArmorModifier, 0);
+
       const activeThresholdLabel = (() => {
         if (activeThreshold <= 0) {
           return "Fully shielded";
@@ -1357,7 +1380,7 @@ export default function EngagementTab(props: EngagementTabProps) {
       })();
 
       const modifiers = [
-        defensiveOption.value,
+        positionLabel,
         trooper.armorId === "heavy" ? "Heavy Armor" : null,
       ]
         .filter(Boolean)
@@ -1369,14 +1392,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         modifiers,
         resultLabel: activeThresholdLabel,
         resultTone: (activeThreshold <= 0 ? "shielded" : "injury") as TrooperDefenseRow["resultTone"],
-        appearance:
-          defensiveOption.value === "Fortified"
-            ? "fortified"
-            : defensiveOption.value === "In Cover"
-              ? "in-cover"
-              : defensiveOption.value === "Flanked"
-                ? "flanked"
-                : undefined,
+        appearance,
       };
     });
   }, [deployedSquad]);
