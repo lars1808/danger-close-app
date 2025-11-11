@@ -1468,6 +1468,13 @@ h1, h2, h3 {
   font-style: italic;
 }
 
+.dc-planning-defense-at-risk {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: rgba(255, 100, 100, 0.9);
+  font-style: italic;
+}
+
 .dc-planning-defense-row:not(.dc-planning-defense-header) .dc-planning-defense-cell--modifiers {
   color: var(--text-dim);
   font-weight: 500;
@@ -4725,4 +4732,101 @@ input[type="checkbox"]:hover {
   text-align: center;
   padding: 20px;
   margin: 0;
+}
+
+/* ==================== AT RISK MODAL ==================== */
+.dc-at-risk-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.dc-at-risk-troopers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.dc-at-risk-trooper-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #1a1c1e;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.dc-at-risk-trooper-btn:hover {
+  border-color: var(--focus);
+  background: #222426;
+  transform: translateX(4px);
+}
+
+.dc-at-risk-trooper-name {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.dc-at-risk-trooper-details {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.dc-at-risk-trooper-status {
+  font-size: 0.85rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.dc-at-risk-trooper-status--ok {
+  color: rgba(76, 175, 80, 0.9);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.dc-at-risk-trooper-status--grazed {
+  color: rgba(255, 193, 7, 0.9);
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.dc-at-risk-trooper-status--wounded {
+  color: rgba(255, 152, 0, 0.9);
+  background: rgba(255, 152, 0, 0.1);
+}
+
+.dc-at-risk-trooper-status--bleeding {
+  color: rgba(244, 67, 54, 0.9);
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.dc-at-risk-trooper-status--dead {
+  color: rgba(158, 158, 158, 0.9);
+  background: rgba(158, 158, 158, 0.1);
+}
+
+.dc-at-risk-trooper-position {
+  font-size: 0.85rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.dc-at-risk-trooper-position--positive {
+  color: rgba(76, 175, 80, 0.9);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.dc-at-risk-trooper-position--caution {
+  color: rgba(255, 193, 7, 0.9);
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.dc-at-risk-trooper-position--negative {
+  color: rgba(244, 67, 54, 0.9);
+  background: rgba(244, 67, 54, 0.1);
 }

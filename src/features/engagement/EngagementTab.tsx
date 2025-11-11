@@ -97,6 +97,7 @@ type TrooperDefenseRow = {
     | "status-dead";
   appearance?: "fortified" | "in-cover" | "flanked";
   coveringFireBy?: string | null;
+  atRisk?: boolean;
 };
 
 const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
@@ -333,6 +334,7 @@ interface NormalizedTrooper {
   defensivePosition: T.DefensivePosition;
   intent: T.TrooperIntent | null;
   coveringFireTargetId: number | null;
+  atRisk: boolean;
 }
 
 interface TrooperOffenseContribution {
@@ -411,6 +413,7 @@ export default function EngagementTab(props: EngagementTabProps) {
       const coveringFireTargetId = typeof trooper?.coveringFireTargetId === "number"
         ? trooper.coveringFireTargetId
         : null;
+      const atRisk = trooper?.atRisk === true;
 
       return {
         storageIndex: index,
@@ -427,6 +430,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         defensivePosition,
         intent,
         coveringFireTargetId,
+        atRisk,
       };
     });
   }, [clampZeroToThree, storedSquad]);
@@ -905,14 +909,19 @@ export default function EngagementTab(props: EngagementTabProps) {
         const trooper = normalizedSquad[index];
         const entryHasIntent = Boolean(entry && 'intent' in entry);
         const trooperHasIntent = Boolean(trooper && trooper.intent !== null);
+        const entryHasAtRisk = Boolean(entry && 'atRisk' in entry);
+        const trooperHasAtRisk = Boolean(trooper && trooper.atRisk);
 
-        if (!entryHasIntent && !trooperHasIntent) {
+        if (!entryHasIntent && !trooperHasIntent && !entryHasAtRisk && !trooperHasAtRisk) {
           return entry;
         }
 
         const next: Partial<T.Trooper> = entry ? { ...entry } : {};
         if ('intent' in next) {
           delete next.intent;
+        }
+        if ('atRisk' in next) {
+          delete next.atRisk;
         }
 
         if (trooper?.storedId !== null) {
@@ -1246,6 +1255,7 @@ export default function EngagementTab(props: EngagementTabProps) {
   // Intent selection modal state
   const [intentModalTrooper, setIntentModalTrooper] = React.useState<NormalizedTrooper | null>(null);
   const [coveringFireModalTrooper, setCoveringFireModalTrooper] = React.useState<NormalizedTrooper | null>(null);
+  const [showAtRiskModal, setShowAtRiskModal] = React.useState(false);
 
   const [offenseDiceBySector, setOffenseDiceBySector] = React.useState<
     Map<string, { value: number; isManual: boolean }>
@@ -1350,6 +1360,7 @@ export default function EngagementTab(props: EngagementTabProps) {
           modifiers: "—",
           resultLabel: statusDetail.label,
           resultTone,
+          atRisk: trooper.atRisk,
         };
       }
 
@@ -1422,6 +1433,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         resultTone: (activeThreshold <= 0 ? "shielded" : "injury") as TrooperDefenseRow["resultTone"],
         appearance,
         coveringFireBy,
+        atRisk: trooper.atRisk,
       };
     });
   }, [deployedSquad]);
@@ -1774,7 +1786,28 @@ export default function EngagementTab(props: EngagementTabProps) {
     const storedSquadName = getStoredSquadName().trim();
     const squadName = storedSquadName || "Unnamed Squad";
     onAddLog(`${squadName} manages to push forward, but not without risk.`, "SYSTEM");
+    setShowAtRiskModal(true);
   }, [handleMomentumChange, onAddLog]);
+
+  const handleSelectTrooperAtRisk = React.useCallback((trooper: NormalizedTrooper) => {
+    persistSquad((prev) =>
+      prev.map((entry, index) => {
+        if (index !== trooper.storageIndex) {
+          return entry;
+        }
+
+        const next: Partial<T.Trooper> = entry ? { ...entry } : {};
+        next.atRisk = true;
+
+        if (trooper.storedId !== null) {
+          next.id = trooper.storedId;
+        }
+
+        return next;
+      }),
+    );
+    setShowAtRiskModal(false);
+  }, [persistSquad]);
 
   const handleSuccess = React.useCallback(() => {
     handleMomentumChange(1);
@@ -2567,6 +2600,11 @@ export default function EngagementTab(props: EngagementTabProps) {
                                     Covering Fire by {defense.coveringFireBy}
                                   </span>
                                 )}
+                                {defense.atRisk && (
+                                  <span className="dc-planning-defense-at-risk">
+                                    At Risk
+                                  </span>
+                                )}
                               </div>
                             </span>
                             <span
@@ -2703,7 +2741,7 @@ export default function EngagementTab(props: EngagementTabProps) {
             onClick={handleClearAllIntents}
             disabled={!hasIntentAssignments}
           >
-            Clear Intent
+            Next Exchange
           </button>
         </div>
         {selectedSector && squadAlerts.length > 0 ? (
@@ -3160,6 +3198,50 @@ export default function EngagementTab(props: EngagementTabProps) {
             </div>
             <div className="dc-modal-buttons">
               <button type="button" className="dc-btn" onClick={() => setCoveringFireModalTrooper(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Success at a Cost - Trooper at Risk Selection Modal */}
+      {showAtRiskModal ? (
+        <div className="dc-modal-overlay" onClick={() => setShowAtRiskModal(false)}>
+          <div className="dc-modal dc-at-risk-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="dc-modal-title">Select Trooper at risk</h3>
+            <div className="dc-at-risk-troopers">
+              {deployedSquad.map((trooper) => {
+                const statusDetail = STATUS_DETAILS[trooper.status];
+                const defensivePositionOption = DEFENSIVE_POSITIONS.find(
+                  (pos) => pos.value === trooper.defensivePosition
+                );
+                const trooperName = trooper.name.trim() || `Trooper ${trooper.displayId}`;
+
+                return (
+                  <button
+                    key={trooper.storageIndex}
+                    type="button"
+                    className="dc-at-risk-trooper-btn"
+                    onClick={() => handleSelectTrooperAtRisk(trooper)}
+                  >
+                    <span className="dc-at-risk-trooper-name">{trooperName}</span>
+                    <div className="dc-at-risk-trooper-details">
+                      <span className={`dc-at-risk-trooper-status dc-at-risk-trooper-status--${statusDetail.tone}`}>
+                        {statusDetail.label}
+                      </span>
+                      {defensivePositionOption && (
+                        <span className={`dc-at-risk-trooper-position dc-at-risk-trooper-position--${defensivePositionOption.tone}`}>
+                          {defensivePositionOption.value}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="dc-modal-buttons">
+              <button type="button" className="dc-btn" onClick={() => setShowAtRiskModal(false)}>
                 Cancel
               </button>
             </div>
