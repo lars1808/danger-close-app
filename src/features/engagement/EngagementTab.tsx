@@ -214,7 +214,10 @@ const TACTIC_ROLL_ANIMATION_DURATION = 1200;
 
 function determineAdvanceOutcome(total: number, threat: ThreatContent): AdvanceOutcome {
   if (threat === "TL 4") {
-    return "Ambushed";
+    if (total <= 3) {
+      return "Ambushed";
+    }
+    return "Spotted";
   }
 
   if (threat === "TL 3") {
@@ -230,6 +233,9 @@ function determineAdvanceOutcome(total: number, threat: ThreatContent): AdvanceO
   if (threat === "TL 2") {
     if (total >= 6) {
       return "Overwhelm";
+    }
+    if (total === 5) {
+      return "Advantage";
     }
     if (total <= 2) {
       return "Ambushed";
