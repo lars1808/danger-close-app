@@ -96,6 +96,7 @@ type TrooperDefenseRow = {
     | "status-bleeding"
     | "status-dead";
   appearance?: "fortified" | "in-cover" | "flanked";
+  coveringFireBy?: string | null;
 };
 
 const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
@@ -1405,6 +1406,14 @@ export default function EngagementTab(props: EngagementTabProps) {
         .filter(Boolean)
         .join(" + ");
 
+      // Find who is providing covering fire for this trooper
+      const coveringFireProvider = deployedSquad.find(
+        (t) => t.intent === "Covering Fire" && t.coveringFireTargetId === trooper.storedId
+      );
+      const coveringFireBy = coveringFireProvider
+        ? coveringFireProvider.name.trim() || `Trooper ${coveringFireProvider.displayId}`
+        : null;
+
       return {
         id: `trooper-${trooper.storageIndex}`,
         name: displayName,
@@ -1412,6 +1421,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         resultLabel: activeThresholdLabel,
         resultTone: (activeThreshold <= 0 ? "shielded" : "injury") as TrooperDefenseRow["resultTone"],
         appearance,
+        coveringFireBy,
       };
     });
   }, [deployedSquad]);
@@ -2449,7 +2459,14 @@ export default function EngagementTab(props: EngagementTabProps) {
                               className="dc-planning-defense-cell dc-planning-defense-cell--name"
                               role="cell"
                             >
-                              {defense.name}
+                              <div className="dc-planning-defense-name-wrapper">
+                                <span>{defense.name}</span>
+                                {defense.coveringFireBy && (
+                                  <span className="dc-planning-defense-covering-fire">
+                                    Covering Fire by {defense.coveringFireBy}
+                                  </span>
+                                )}
+                              </div>
                             </span>
                             <span
                               className="dc-planning-defense-cell dc-planning-defense-cell--modifiers"
@@ -2950,12 +2967,16 @@ export default function EngagementTab(props: EngagementTabProps) {
                 type="button"
                 className="dc-intent-option-btn"
                 onClick={() => handleSelectIntent(intentModalTrooper, "Covering Fire")}
+                disabled={getValidCoveringFireTargets(intentModalTrooper).length === 0}
               >
                 <div className="dc-intent-option-header">
                   <span className="dc-intent-option-title">Covering Fire</span>
                 </div>
                 <p className="dc-intent-option-description">
                   Add +1d6 to the Defense Roll of a Moving or Interacting Trooper.
+                  {getValidCoveringFireTargets(intentModalTrooper).length === 0 && (
+                    <span className="dc-intent-option-unavailable"> (No eligible targets)</span>
+                  )}
                 </p>
               </button>
 

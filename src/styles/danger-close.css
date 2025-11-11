@@ -1455,6 +1455,19 @@ h1, h2, h3 {
   color: var(--text);
 }
 
+.dc-planning-defense-name-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dc-planning-defense-covering-fire {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: rgba(53, 176, 255, 0.9);
+  font-style: italic;
+}
+
 .dc-planning-defense-row:not(.dc-planning-defense-header) .dc-planning-defense-cell--modifiers {
   color: var(--text-dim);
   font-weight: 500;
@@ -4447,6 +4460,18 @@ input[type="checkbox"]:hover {
   transform: translateY(0);
 }
 
+.dc-intent-option-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(221, 161, 94, 0.2);
+}
+
+.dc-intent-option-btn:disabled:hover {
+  background: #1a1c1e;
+  transform: none;
+  border-color: rgba(221, 161, 94, 0.2);
+}
+
 .dc-intent-option-header {
   display: flex;
   align-items: center;
@@ -4464,6 +4489,11 @@ input[type="checkbox"]:hover {
   color: rgba(221, 161, 94, 0.8);
   font-size: 0.95rem;
   line-height: 1.4;
+}
+
+.dc-intent-option-unavailable {
+  color: rgba(221, 161, 94, 0.5);
+  font-style: italic;
 }
 
 .dc-intent-option-detail {
