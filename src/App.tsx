@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import SquadTable from "./features/squad/SquadTable";
 import LogFlyout from "./features/log/LogFlyout";
+import DiceTray from "./features/dice/DiceTray";
 import MissionSetup, {
   MISSION_STORAGE_KEY,
   normalizeMission,
@@ -34,6 +35,7 @@ export default function App() {
     return "default";
   });
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [isDiceTrayOpen, setIsDiceTrayOpen] = useState(false);
   const [isLogOpen, setIsLogOpen] = useState(false);
 
   // Apply theme on mount and when it changes
@@ -132,6 +134,16 @@ export default function App() {
 
   return (
     <main>
+      <button
+        type="button"
+        className={`dice-tab ${isDiceTrayOpen ? "dice-tab--open" : ""}`}
+        onClick={() => setIsDiceTrayOpen((prev) => !prev)}
+        aria-expanded={isDiceTrayOpen}
+        aria-controls="dice-tray"
+      >
+        Dice Roller
+      </button>
+      {isDiceTrayOpen && <DiceTray onClose={() => setIsDiceTrayOpen(false)} />}
       <button
         type="button"
         className={`log-tab ${logAttention ? "log-tab--notify" : ""}`}
