@@ -1725,6 +1725,35 @@ h1, h2, h3 {
   color: var(--text-dim);
 }
 
+.dc-outcome-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--accent-cyan);
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  transition: color 0.2s ease;
+}
+
+.dc-outcome-link:hover {
+  color: var(--accent-cyan-bright, #5dd8ff);
+}
+
+.dc-outcome-link:active {
+  color: var(--accent-cyan-dim, #4a9fb3);
+}
+
+.dc-outcome-link:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .dc-planning-defense-guidance {
   margin: 0;
   color: var(--text);

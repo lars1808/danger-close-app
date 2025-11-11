@@ -1758,6 +1758,105 @@ export default function EngagementTab(props: EngagementTabProps) {
     [onAddLog, onMissionChange, selectedSector, threatLevel],
   );
 
+  // Engagement outcome handlers
+  const handlePushedBack = React.useCallback(() => {
+    handleMomentumChange(-1);
+  }, [handleMomentumChange]);
+
+  const handleHoldPosition = React.useCallback(() => {
+    const storedSquadName = getStoredSquadName().trim();
+    const squadName = storedSquadName || "Unnamed Squad";
+    onAddLog(`${squadName} stands their ground.`, "SYSTEM");
+  }, [onAddLog]);
+
+  const handleSuccessAtCost = React.useCallback(() => {
+    handleMomentumChange(1);
+    const storedSquadName = getStoredSquadName().trim();
+    const squadName = storedSquadName || "Unnamed Squad";
+    onAddLog(`${squadName} manages to push forward, but not without risk.`, "SYSTEM");
+  }, [handleMomentumChange, onAddLog]);
+
+  const handleSuccess = React.useCallback(() => {
+    handleMomentumChange(1);
+  }, [handleMomentumChange]);
+
+  // Render engagement outcome with clickable parts
+  const renderOutcomeDescription = React.useCallback(
+    (description: string) => {
+      // "Pushed Back. Lose 1 Momentum" => "Pushed Back." (clickable)
+      if (description.includes("Pushed Back")) {
+        return (
+          <button
+            type="button"
+            className="dc-outcome-link"
+            onClick={handlePushedBack}
+            aria-label="Pushed back - lose 1 momentum"
+          >
+            Pushed Back.
+          </button>
+        );
+      }
+
+      // "Hold Position or Success at a Cost" => two clickable parts
+      if (description.includes("Hold Position or Success at a Cost")) {
+        return (
+          <>
+            <button
+              type="button"
+              className="dc-outcome-link"
+              onClick={handleHoldPosition}
+              aria-label="Hold position"
+            >
+              Hold Position
+            </button>
+            {" or "}
+            <button
+              type="button"
+              className="dc-outcome-link"
+              onClick={handleSuccessAtCost}
+              aria-label="Success at a cost - gain 1 momentum"
+            >
+              Success at a Cost
+            </button>
+            .
+          </>
+        );
+      }
+
+      // "Hold Position" => "Hold Position." (clickable)
+      if (description === "Hold Position") {
+        return (
+          <button
+            type="button"
+            className="dc-outcome-link"
+            onClick={handleHoldPosition}
+            aria-label="Hold position"
+          >
+            Hold Position.
+          </button>
+        );
+      }
+
+      // "Success" => "Success." (clickable)
+      if (description === "Success") {
+        return (
+          <button
+            type="button"
+            className="dc-outcome-link"
+            onClick={handleSuccess}
+            aria-label="Success - gain 1 momentum"
+          >
+            Success.
+          </button>
+        );
+      }
+
+      // Fallback for any other description
+      return <>{description}</>;
+    },
+    [handlePushedBack, handleHoldPosition, handleSuccessAtCost, handleSuccess],
+  );
+
   return (
     <section className="dc-engagement" aria-label="Engagement Overview">
       <div className="dc-engagement-field">
@@ -2396,7 +2495,9 @@ export default function EngagementTab(props: EngagementTabProps) {
                         ).map((row) => (
                           <li key={row.range} className="dc-planning-offense-row">
                             <span className="dc-planning-offense-range">{row.range}</span>
-                            <span className="dc-planning-offense-description">{row.description}</span>
+                            <span className="dc-planning-offense-description">
+                              {renderOutcomeDescription(row.description)}
+                            </span>
                           </li>
                         ))}
                       </ul>
