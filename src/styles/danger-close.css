@@ -4401,3 +4401,144 @@ input[type="checkbox"]:hover {
     font-size: 0.85rem;
   }
 }
+
+/* ==================== INTENT SELECTION MODAL ==================== */
+.dc-intent-select-btn {
+  min-width: 150px;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.dc-intent-modal {
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.dc-intent-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.dc-intent-option-btn {
+  background: #1a1c1e;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dc-intent-option-btn:hover {
+  border-color: var(--focus);
+  background: #222426;
+  transform: translateY(-2px);
+}
+
+.dc-intent-option-btn:active {
+  transform: translateY(0);
+}
+
+.dc-intent-option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dc-intent-option-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.dc-intent-option-description {
+  margin: 0;
+  color: rgba(221, 161, 94, 0.8);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.dc-intent-option-detail {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(221, 161, 94, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dc-intent-option-value {
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--accent);
+}
+
+.dc-intent-option-breakdown {
+  margin: 0;
+  color: rgba(221, 161, 94, 0.7);
+  font-size: 0.85rem;
+}
+
+/* ==================== COVERING FIRE MODAL ==================== */
+.dc-covering-fire-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.dc-modal-description {
+  margin: 16px 0;
+  color: rgba(221, 161, 94, 0.8);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.dc-covering-fire-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.dc-covering-fire-target-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #1a1c1e;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.dc-covering-fire-target-btn:hover {
+  border-color: var(--focus);
+  background: #222426;
+  transform: translateX(4px);
+}
+
+.dc-covering-fire-target-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.dc-covering-fire-target-intent {
+  color: rgba(221, 161, 94, 0.7);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.dc-covering-fire-empty {
+  color: rgba(221, 161, 94, 0.6);
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+}
