@@ -351,6 +351,8 @@ export default function EngagementTab(props: EngagementTabProps) {
   const [openStatusIndex, setOpenStatusIndex] = React.useState<number | null>(null);
   const statusMenuRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
 
+  const isSelfPersistingSquadRef = React.useRef(false);
+
   const persistSquad = React.useCallback(
     (updater: (prev: Partial<T.Trooper>[]) => Partial<T.Trooper>[]) => {
       setStoredSquad((prev) => {
@@ -358,6 +360,7 @@ export default function EngagementTab(props: EngagementTabProps) {
         try {
           if (typeof window !== "undefined" && window.localStorage) {
             window.localStorage.setItem(SQUAD_STORAGE_KEY, JSON.stringify(next));
+            isSelfPersistingSquadRef.current = true;
             window.dispatchEvent(new Event(SQUAD_UPDATED_EVENT));
           }
         } catch {
@@ -941,6 +944,10 @@ export default function EngagementTab(props: EngagementTabProps) {
   const previousSectorIdRef = React.useRef<string | null>(null);
 
   const handleStoredSquadUpdate = React.useCallback(() => {
+    if (isSelfPersistingSquadRef.current) {
+      isSelfPersistingSquadRef.current = false;
+      return;
+    }
     setStoredSquad(getStoredSquad());
     setStoredArmory(getStoredArmory());
   }, []);
