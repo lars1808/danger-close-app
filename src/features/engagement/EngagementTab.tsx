@@ -82,6 +82,8 @@ type PositionOption<TPosition> = {
   injuryThreshold?: number;
 };
 
+type MomentumStatus = { label: string; tone: "victory" | "defeat" };
+
 type TrooperDefenseRow = {
   id: string;
   name: string;
@@ -477,15 +479,15 @@ export default function EngagementTab(props: EngagementTabProps) {
     }
     return Math.min(MOMENTUM_MAX, threatLevel + 1);
   }, [threatLevel]);
-  const momentumStatus = React.useMemo(() => {
+  const baseMomentumStatus = React.useMemo<MomentumStatus | null>(() => {
     if (victoryThreshold === null) {
       return null;
     }
     if (currentMomentum <= MOMENTUM_MIN) {
-      return { label: "Defeat", tone: "defeat" as const };
+      return { label: "Defeat", tone: "defeat" };
     }
     if (currentMomentum >= victoryThreshold) {
-      return { label: "Victory", tone: "victory" as const };
+      return { label: "Victory", tone: "victory" };
     }
     return null;
   }, [currentMomentum, victoryThreshold]);
@@ -640,10 +642,32 @@ export default function EngagementTab(props: EngagementTabProps) {
         return previous;
       }
 
-      const nextValue = Math.max(1, clampNonNegativeInteger(previous + delta));
+      const nextValue = Math.max(0, clampNonNegativeInteger(previous + delta));
       return nextValue;
     });
   }, []);
+
+  const defenseResolution = React.useMemo<
+    | {
+        status: MomentumStatus;
+        message?: string;
+      }
+    | null
+  >(() => {
+    if (!isDefenseObjectiveEnabled || defenseExchangeGoal === null || defenseExchangeGoal > 0) {
+      return null;
+    }
+
+    if (currentMomentum >= 1) {
+      return { status: { label: "Victory", tone: "victory" } };
+    }
+
+    return {
+      status: { label: "Defeat", tone: "defeat" },
+      message: "The Sector has fallen.",
+    };
+  }, [currentMomentum, defenseExchangeGoal, isDefenseObjectiveEnabled]);
+  const momentumStatus = defenseResolution?.status ?? baseMomentumStatus;
 
   const squadAlerts = React.useMemo(() => {
     if (!selectedSector) {
@@ -2245,7 +2269,7 @@ export default function EngagementTab(props: EngagementTabProps) {
                     type="button"
                     className="dc-btn dc-btn--sm dc-momentum-defense-btn"
                     onClick={() => handleDefenseExchangeGoalChange(-1)}
-                    disabled={defenseExchangeGoal <= 1}
+                    disabled={defenseExchangeGoal <= 0}
                     aria-label="Decrease defense exchange goal"
                   >
                     -
@@ -2263,6 +2287,9 @@ export default function EngagementTab(props: EngagementTabProps) {
               <p className="dc-momentum-defense-note">
                 Momentum must be at +1 or higher when timer reaches 0 for victory
               </p>
+              {defenseResolution?.message ? (
+                <p className="dc-momentum-defense-outcome">{defenseResolution.message}</p>
+              ) : null}
             </div>
           ) : null}
         </div>
