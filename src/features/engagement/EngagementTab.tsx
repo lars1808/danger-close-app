@@ -491,6 +491,27 @@ export default function EngagementTab(props: EngagementTabProps) {
     }
     return null;
   }, [currentMomentum, victoryThreshold]);
+  const defenseOutcome = React.useMemo<
+    | {
+        status: MomentumStatus;
+        message?: string;
+      }
+    | null
+  >(() => {
+    if (!isDefenseObjectiveEnabled || defenseExchangeGoal === null || defenseExchangeGoal > 0) {
+      return null;
+    }
+
+    if (currentMomentum >= 1) {
+      return { status: { label: "Victory", tone: "victory" } };
+    }
+
+    return {
+      status: { label: "Defeat", tone: "defeat" },
+      message: "The Sector has fallen.",
+    };
+  }, [currentMomentum, defenseExchangeGoal, isDefenseObjectiveEnabled]);
+  const momentumStatus = defenseOutcome?.status ?? baseMomentumStatus;
   const momentumDecreaseDisabled = currentMomentum <= MOMENTUM_MIN;
   const momentumIncreaseDisabled = currentMomentum >= MOMENTUM_MAX;
 
