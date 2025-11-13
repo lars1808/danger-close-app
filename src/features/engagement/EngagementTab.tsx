@@ -668,7 +668,7 @@ export default function EngagementTab(props: EngagementTabProps) {
     });
   }, []);
 
-  const defenseOutcome = React.useMemo<
+  const defenseResolution = React.useMemo<
     | {
         status: MomentumStatus;
         message?: string;
@@ -688,7 +688,7 @@ export default function EngagementTab(props: EngagementTabProps) {
       message: "The Sector has fallen.",
     };
   }, [currentMomentum, defenseExchangeGoal, isDefenseObjectiveEnabled]);
-  const momentumStatus = defenseOutcome?.status ?? baseMomentumStatus;
+  const momentumStatus = defenseResolution?.status ?? baseMomentumStatus;
 
   const squadAlerts = React.useMemo(() => {
     if (!selectedSector) {
@@ -2308,8 +2308,8 @@ export default function EngagementTab(props: EngagementTabProps) {
               <p className="dc-momentum-defense-note">
                 Momentum must be at +1 or higher when timer reaches 0 for victory
               </p>
-              {defenseOutcome?.message ? (
-                <p className="dc-momentum-defense-outcome">{defenseOutcome.message}</p>
+              {defenseResolution?.message ? (
+                <p className="dc-momentum-defense-outcome">{defenseResolution.message}</p>
               ) : null}
             </div>
           ) : null}
