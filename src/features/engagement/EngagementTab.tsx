@@ -100,6 +100,14 @@ type TrooperDefenseRow = {
   atRisk?: boolean;
 };
 
+interface MoveModalState {
+  trooperIndex: number;
+  intent: MoveIntent;
+  startingOffensivePosition: T.OffensivePosition;
+  startingDefensivePosition: T.DefensivePosition;
+  result: T.MoveResult;
+}
+
 const OFFENSIVE_POSITIONS: PositionOption<T.OffensivePosition>[] = [
   { value: "Flanking", tone: "positive", detail: "+1d6 when Firing" },
   { value: "Engaged", tone: "caution", detail: "No bonus when Firing" },
@@ -111,6 +119,96 @@ const DEFENSIVE_POSITIONS: PositionOption<T.DefensivePosition>[] = [
   { value: "In Cover", tone: "caution", detail: "Injury on 1-2", injuryThreshold: 2 },
   { value: "Flanked", tone: "negative", detail: "Injury on 1-3", injuryThreshold: 3 },
 ];
+
+const OFFENSIVE_PROGRESSION_ORDER: readonly T.OffensivePosition[] = ["Limited", "Engaged", "Flanking"];
+const DEFENSIVE_PROGRESSION_ORDER: readonly T.DefensivePosition[] = ["Flanked", "In Cover", "Fortified"];
+
+type MoveIntent = Extract<T.TrooperIntent, "Move Up" | "Fall Back">;
+
+function getNextFromProgression<TPosition>(progression: readonly TPosition[], current: TPosition): TPosition {
+  const index = progression.indexOf(current);
+  if (index === -1) {
+    return progression[0];
+  }
+  const nextIndex = Math.min(index + 1, progression.length - 1);
+  return progression[nextIndex];
+}
+
+function getNextOffensivePosition(current: T.OffensivePosition): T.OffensivePosition {
+  return getNextFromProgression(OFFENSIVE_PROGRESSION_ORDER, current);
+}
+
+function getNextDefensivePosition(current: T.DefensivePosition): T.DefensivePosition {
+  return getNextFromProgression(DEFENSIVE_PROGRESSION_ORDER, current);
+}
+
+function rollD6(): number {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+function normalizeRoll(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  return Math.min(Math.max(Math.trunc(value), 1), 6);
+}
+
+function getUncertainPosition(intent: MoveIntent, roll: number): T.Position {
+  const normalized = normalizeRoll(roll);
+  if (intent === "Move Up") {
+    return normalized <= 4 ? "Flanked" : "In Cover";
+  }
+  return normalized <= 4 ? "Limited" : "Engaged";
+}
+
+function getUncertainRanking(intent: MoveIntent, position: T.Position): number {
+  if (intent === "Move Up") {
+    if (position === "In Cover") {
+      return 2;
+    }
+    if (position === "Flanked") {
+      return 1;
+    }
+    return 0;
+  }
+
+  if (position === "Engaged") {
+    return 2;
+  }
+  if (position === "Limited") {
+    return 1;
+  }
+  return 0;
+}
+
+function getBestUncertainPosition(intent: MoveIntent, rolls: number[]): T.Position {
+  if (rolls.length === 0) {
+    return getWorstUncertainPosition(intent);
+  }
+
+  return rolls
+    .map((value) => getUncertainPosition(intent, value))
+    .reduce((best, candidate) => {
+      const candidateScore = getUncertainRanking(intent, candidate);
+      const bestScore = getUncertainRanking(intent, best);
+      return candidateScore >= bestScore ? candidate : best;
+    });
+}
+
+function getWorstUncertainPosition(intent: MoveIntent): T.Position {
+  return intent === "Move Up" ? "Flanked" : "Limited";
+}
+
+function getBestPossibleUncertainPosition(intent: MoveIntent): T.Position {
+  return intent === "Move Up" ? "In Cover" : "Engaged";
+}
+
+function isPositiveOutcome(intent: MoveIntent, position: T.Position): boolean {
+  if (intent === "Move Up") {
+    return position === "In Cover";
+  }
+  return position === "Engaged";
+}
 
 type TacticTableEntry = {
   id: string;
@@ -1254,6 +1352,8 @@ export default function EngagementTab(props: EngagementTabProps) {
 
   // Intent selection modal state
   const [intentModalTrooper, setIntentModalTrooper] = React.useState<NormalizedTrooper | null>(null);
+  const [intentModalError, setIntentModalError] = React.useState<string | null>(null);
+  const [moveModalState, setMoveModalState] = React.useState<MoveModalState | null>(null);
   const [coveringFireModalTrooper, setCoveringFireModalTrooper] = React.useState<NormalizedTrooper | null>(null);
   const [showAtRiskModal, setShowAtRiskModal] = React.useState(false);
 
@@ -1325,6 +1425,16 @@ export default function EngagementTab(props: EngagementTabProps) {
       setHighlightedTacticId(null);
     }
   }, [threatLevel]);
+
+  React.useEffect(() => {
+    if (!moveModalState) {
+      return;
+    }
+    const trooper = normalizedSquad[moveModalState.trooperIndex];
+    if (!trooper) {
+      setMoveModalState(null);
+    }
+  }, [moveModalState, normalizedSquad]);
 
   const activeTrooperIntents = React.useMemo(
     () =>
@@ -1445,6 +1555,13 @@ export default function EngagementTab(props: EngagementTabProps) {
       ),
     [deployedSquad],
   );
+
+  const moveModalTrooper = React.useMemo(() => {
+    if (!moveModalState) {
+      return null;
+    }
+    return normalizedSquad[moveModalState.trooperIndex] ?? null;
+  }, [moveModalState, normalizedSquad]);
 
   const offensiveFlankingTroopers = React.useMemo(
     () =>
@@ -1608,35 +1725,204 @@ export default function EngagementTab(props: EngagementTabProps) {
     return trooper.intent;
   }, [normalizedSquad]);
 
-  const handleSelectIntent = React.useCallback((trooper: NormalizedTrooper, intent: T.TrooperIntent) => {
-    if (intent === "Covering Fire") {
-      // Check if there are valid targets
-      const validTargets = activeTroopers.filter(
-        (t) =>
-          t.storageIndex !== trooper.storageIndex &&
-          (t.intent === "Move Up" || t.intent === "Fall Back" || t.intent === "Interact")
-      );
+  const closeIntentModal = React.useCallback(() => {
+    setIntentModalTrooper(null);
+    setIntentModalError(null);
+  }, []);
 
-      if (validTargets.length > 0) {
-        // Open covering fire modal
-        setCoveringFireModalTrooper(trooper);
-        setIntentModalTrooper(null);
-      } else {
-        // No valid targets, just set the intent without a target
-        handleIntentChange(trooper, intent, null);
-        setIntentModalTrooper(null);
+  const openIntentModalForTrooper = React.useCallback((trooper: NormalizedTrooper) => {
+    setIntentModalTrooper(trooper);
+    setIntentModalError(null);
+  }, []);
+
+  const handleSelectIntent = React.useCallback(
+    (trooper: NormalizedTrooper, intent: T.TrooperIntent) => {
+      setIntentModalError(null);
+
+      if (intent === "Move Up" || intent === "Fall Back") {
+        const isMoveUp = intent === "Move Up";
+
+        if (isMoveUp && trooper.offensivePosition === "Flanking") {
+          setIntentModalError("Cannot Move Up: offensive position already at Flanking.");
+          return;
+        }
+
+        if (!isMoveUp && trooper.defensivePosition === "Fortified") {
+          setIntentModalError("Cannot Fall Back: defensive position already at Fortified.");
+          return;
+        }
+
+        const guaranteedPosition = isMoveUp
+          ? getNextOffensivePosition(trooper.offensivePosition)
+          : getNextDefensivePosition(trooper.defensivePosition);
+
+        let result: T.MoveResult;
+        if (trooper.armorId === "heavy") {
+          result = {
+            guaranteedPosition,
+            uncertainPosition: getWorstUncertainPosition(intent),
+            diceRolls: [],
+            gritSpent: false,
+          };
+        } else if (trooper.armorId === "light") {
+          const firstRoll = rollD6();
+          const secondRoll = rollD6();
+          const diceRolls = [firstRoll, secondRoll];
+          result = {
+            guaranteedPosition,
+            uncertainPosition: getBestUncertainPosition(intent, diceRolls),
+            diceRolls,
+            gritSpent: false,
+          };
+        } else {
+          const roll = rollD6();
+          result = {
+            guaranteedPosition,
+            uncertainPosition: getUncertainPosition(intent, roll),
+            diceRolls: [roll],
+            gritSpent: false,
+          };
+        }
+
+        setMoveModalState({
+          trooperIndex: trooper.storageIndex,
+          intent,
+          startingOffensivePosition: trooper.offensivePosition,
+          startingDefensivePosition: trooper.defensivePosition,
+          result,
+        });
+        closeIntentModal();
+        return;
       }
-    } else {
-      // For other intents, just set the intent
+
+      if (intent === "Covering Fire") {
+        const validTargets = getValidCoveringFireTargets(trooper);
+
+        if (validTargets.length > 0) {
+          setCoveringFireModalTrooper(trooper);
+          closeIntentModal();
+        } else {
+          handleIntentChange(trooper, intent, null);
+          closeIntentModal();
+        }
+        return;
+      }
+
       handleIntentChange(trooper, intent);
-      setIntentModalTrooper(null);
-    }
-  }, [activeTroopers, handleIntentChange]);
+      closeIntentModal();
+    },
+    [
+      closeIntentModal,
+      getValidCoveringFireTargets,
+      handleIntentChange,
+      setCoveringFireModalTrooper,
+      setIntentModalError,
+      setMoveModalState,
+    ],
+  );
 
   const handleSelectCoveringFireTarget = React.useCallback((trooper: NormalizedTrooper, targetId: number) => {
     handleIntentChange(trooper, "Covering Fire", targetId);
     setCoveringFireModalTrooper(null);
   }, [handleIntentChange]);
+
+  const handleCancelMove = React.useCallback(() => {
+    if (!moveModalState) {
+      return;
+    }
+
+    const trooper = normalizedSquad[moveModalState.trooperIndex];
+    setMoveModalState(null);
+
+    if (trooper) {
+      openIntentModalForTrooper(trooper);
+    } else {
+      setIntentModalError(null);
+    }
+  }, [moveModalState, normalizedSquad, openIntentModalForTrooper, setIntentModalError]);
+
+  const handleConfirmMove = React.useCallback(() => {
+    if (!moveModalState) {
+      return;
+    }
+
+    const trooper = normalizedSquad[moveModalState.trooperIndex];
+    if (!trooper) {
+      setMoveModalState(null);
+      return;
+    }
+
+    const { intent, result } = moveModalState;
+    const nextOffensivePosition =
+      intent === "Move Up"
+        ? (result.guaranteedPosition as T.OffensivePosition)
+        : (result.uncertainPosition as T.OffensivePosition);
+    const nextDefensivePosition =
+      intent === "Move Up"
+        ? (result.uncertainPosition as T.DefensivePosition)
+        : (result.guaranteedPosition as T.DefensivePosition);
+
+    persistSquad((prev) =>
+      prev.map((entry, index) => {
+        if (index !== trooper.storageIndex) {
+          return entry;
+        }
+
+        const base: Partial<T.Trooper> = entry ? { ...entry } : {};
+        const next: Partial<T.Trooper> = {
+          ...base,
+          offensivePosition: nextOffensivePosition,
+          defensivePosition: nextDefensivePosition,
+          intent,
+        };
+
+        delete next.coveringFireTargetId;
+
+        if (trooper.storedId !== null) {
+          next.id = trooper.storedId;
+        }
+
+        return next;
+      }),
+    );
+
+    setMoveModalState(null);
+    setIntentModalError(null);
+  }, [moveModalState, normalizedSquad, persistSquad, setIntentModalError]);
+
+  const handleMoveReroll = React.useCallback(() => {
+    if (!moveModalState) {
+      return;
+    }
+
+    const trooper = moveModalTrooper ?? normalizedSquad[moveModalState.trooperIndex];
+    if (!trooper) {
+      return;
+    }
+
+    if (trooper.armorId !== "medium" || moveModalState.result.gritSpent || trooper.grit <= 0) {
+      return;
+    }
+
+    handleResourceBump(trooper, "grit", -1);
+
+    const newRoll = rollD6();
+    setMoveModalState((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const updatedRolls = [...prev.result.diceRolls, newRoll];
+      return {
+        ...prev,
+        result: {
+          guaranteedPosition: prev.result.guaranteedPosition,
+          uncertainPosition: getUncertainPosition(prev.intent, newRoll),
+          diceRolls: updatedRolls,
+          gritSpent: true,
+        },
+      };
+    });
+  }, [handleResourceBump, moveModalState, moveModalTrooper, normalizedSquad]);
 
   const getOffenseContributionForTrooper = React.useCallback((trooper: NormalizedTrooper) => {
     return offenseContributions.find((c) => c.trooperId === `trooper-${trooper.storageIndex}`);
@@ -2414,7 +2700,7 @@ export default function EngagementTab(props: EngagementTabProps) {
                                   <button
                                     type="button"
                                     className="dc-btn dc-btn--sm dc-intent-select-btn"
-                                    onClick={() => setIntentModalTrooper(trooper)}
+                                  onClick={() => openIntentModalForTrooper(trooper)}
                                   >
                                     {getIntentDisplayText(trooper)}
                                   </button>
@@ -3051,11 +3337,14 @@ export default function EngagementTab(props: EngagementTabProps) {
 
       {/* Intent Selection Modal */}
       {intentModalTrooper ? (
-        <div className="dc-modal-overlay" onClick={() => setIntentModalTrooper(null)}>
+        <div className="dc-modal-overlay" onClick={closeIntentModal}>
           <div className="dc-modal dc-intent-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="dc-modal-title">
               Select Intent: {intentModalTrooper.name.trim() || `Trooper ${intentModalTrooper.displayId}`}
             </h3>
+            {intentModalError ? (
+              <div className="dc-intent-modal-error" role="alert">{intentModalError}</div>
+            ) : null}
             <div className="dc-intent-options">
               <button
                 type="button"
@@ -3155,13 +3444,238 @@ export default function EngagementTab(props: EngagementTabProps) {
               </button>
             </div>
             <div className="dc-modal-buttons">
-              <button type="button" className="dc-btn" onClick={() => setIntentModalTrooper(null)}>
+              <button type="button" className="dc-btn" onClick={closeIntentModal}>
                 Cancel
               </button>
             </div>
           </div>
         </div>
       ) : null}
+
+      {moveModalState
+        ? (() => {
+            const trooper = moveModalTrooper;
+            const intent = moveModalState.intent;
+            const trooperName = trooper
+              ? trooper.name.trim() || `Trooper ${trooper.displayId}`
+              : "Trooper";
+            const armorId = trooper?.armorId ?? "medium";
+            const guaranteedLabel = intent === "Move Up" ? "Offensive Position" : "Defensive Position";
+            const guaranteedCurrent =
+              intent === "Move Up"
+                ? moveModalState.startingOffensivePosition
+                : moveModalState.startingDefensivePosition;
+            const guaranteedNext = intent === "Move Up"
+              ? (moveModalState.result.guaranteedPosition as T.OffensivePosition)
+              : (moveModalState.result.guaranteedPosition as T.DefensivePosition);
+            const progression =
+              intent === "Move Up" ? OFFENSIVE_PROGRESSION_ORDER : DEFENSIVE_PROGRESSION_ORDER;
+            const uncertainLabel = intent === "Move Up" ? "Defensive Position" : "Offensive Position";
+            const uncertainCurrent =
+              intent === "Move Up"
+                ? moveModalState.startingDefensivePosition
+                : moveModalState.startingOffensivePosition;
+            const uncertainNext = intent === "Move Up"
+              ? (moveModalState.result.uncertainPosition as T.DefensivePosition)
+              : (moveModalState.result.uncertainPosition as T.OffensivePosition);
+            const worstOutcome = getWorstUncertainPosition(intent);
+            const bestOutcome = getBestPossibleUncertainPosition(intent);
+            const diceRolls = moveModalState.result.diceRolls;
+            const finalRoll = diceRolls[diceRolls.length - 1] ?? null;
+            const previousRoll = diceRolls.length > 1 ? diceRolls[0] : null;
+            const newOffensive =
+              intent === "Move Up"
+                ? (moveModalState.result.guaranteedPosition as T.OffensivePosition)
+                : (moveModalState.result.uncertainPosition as T.OffensivePosition);
+            const newDefensive =
+              intent === "Move Up"
+                ? (moveModalState.result.uncertainPosition as T.DefensivePosition)
+                : (moveModalState.result.guaranteedPosition as T.DefensivePosition);
+            const offensiveTone =
+              OFFENSIVE_POSITIONS.find((option) => option.value === newOffensive)?.tone ?? "caution";
+            const defensiveTone =
+              DEFENSIVE_POSITIONS.find((option) => option.value === newDefensive)?.tone ?? "caution";
+            const armorNote =
+              armorId === "heavy"
+                ? "Heavy Armor: Always worst outcome"
+                : armorId === "light"
+                  ? "Light Armor: Best of two rolls"
+                  : "Medium Armor: Roll 1d6. Spend 1 Grit to re-roll once.";
+            const hasGrit = trooper ? trooper.grit > 0 : false;
+            const canReroll = armorId === "medium" && !moveModalState.result.gritSpent && hasGrit;
+            const uncertainIsPositive = isPositiveOutcome(intent, moveModalState.result.uncertainPosition);
+
+            return (
+              <div className="dc-modal-overlay" onClick={handleCancelMove}>
+                <div className="dc-modal dc-move-modal" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="dc-modal-title">
+                    {intent === "Move Up" ? "Resolve Move Up" : "Resolve Fall Back"}: {trooperName}
+                  </h3>
+
+                  <div className="dc-move-section">
+                    <h4 className="dc-move-section-title">1. Guaranteed Position Change</h4>
+                    <div className="dc-move-track">
+                      <span className="dc-move-track-label">{guaranteedLabel}</span>
+                      <span className="dc-move-track-value">{guaranteedCurrent}</span>
+                      <span className="dc-move-track-arrow" aria-hidden="true">
+                        →
+                      </span>
+                      <span className="dc-move-track-value is-target">{guaranteedNext}</span>
+                    </div>
+                    <div className="dc-move-progression" aria-hidden="true">
+                      {progression.map((step) => {
+                        const isCurrent = step === guaranteedCurrent;
+                        const isTarget = step === guaranteedNext;
+                        const className = [
+                          "dc-move-progression-step",
+                          isCurrent ? "is-current" : "",
+                          isTarget ? "is-target" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ");
+                        return (
+                          <span key={step} className={className}>
+                            {step}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="dc-move-section">
+                    <h4 className="dc-move-section-title">2. Armor Check</h4>
+                    <p className="dc-move-armor-note">{armorNote}</p>
+                    <div className="dc-move-outcome-ranges">
+                      <span>
+                        1–4 → <strong>{worstOutcome}</strong>
+                      </span>
+                      <span>
+                        5–6 → <strong>{bestOutcome}</strong>
+                      </span>
+                    </div>
+
+                    {armorId === "heavy" ? (
+                      <div className="dc-move-track dc-move-track--uncertain">
+                        <span className="dc-move-track-label">{uncertainLabel}</span>
+                        <span className="dc-move-track-value">{uncertainCurrent}</span>
+                        <span className="dc-move-track-arrow" aria-hidden="true">
+                          →
+                        </span>
+                        <span className="dc-move-track-value is-target">{worstOutcome}</span>
+                      </div>
+                    ) : armorId === "light" ? (
+                      <div className="dc-move-dice">
+                        {diceRolls.map((value, index) => {
+                          const outcome = getUncertainPosition(intent, value);
+                          const isSelected = outcome === moveModalState.result.uncertainPosition;
+                          const dieClassName = [
+                            "dc-move-die",
+                            isSelected ? "is-selected" : "",
+                            isSelected && isPositiveOutcome(intent, outcome) ? "is-winning" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ");
+                          return (
+                            <div key={`move-die-${index}`} className={dieClassName}>
+                              <span className="dc-move-die-label">Die {index + 1}</span>
+                              <span className="dc-move-die-value">{value}</span>
+                              <span className="dc-move-die-outcome">{outcome}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="dc-move-dice">
+                          <div className="dc-move-die is-selected">
+                            <span className="dc-move-die-label">Current Roll</span>
+                            <span className="dc-move-die-value">{finalRoll}</span>
+                            <span className="dc-move-die-outcome">{uncertainNext}</span>
+                          </div>
+                        </div>
+                        {canReroll ? (
+                          <div className="dc-move-actions">
+                            <button
+                              type="button"
+                              className="dc-btn dc-btn--sm"
+                              onClick={handleMoveReroll}
+                            >
+                              Spend 1 Grit to Re-roll
+                            </button>
+                          </div>
+                        ) : null}
+                        {moveModalState.result.gritSpent || !hasGrit || previousRoll !== null ? (
+                          <div className="dc-move-reroll-meta">
+                            {moveModalState.result.gritSpent ? (
+                              <p className="dc-move-reroll-note">Grit spent. Result locked.</p>
+                            ) : !hasGrit ? (
+                              <p className="dc-move-reroll-note">No Grit remaining for a re-roll.</p>
+                            ) : null}
+                            {previousRoll !== null ? (
+                              <p className="dc-move-reroll-note">Previous roll: {previousRoll}</p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+
+                    <div className="dc-move-uncertain-summary">
+                      Resulting {uncertainLabel}:{" "}
+                      <span
+                        className={`dc-move-badge ${uncertainIsPositive ? "dc-move-badge--positive" : "dc-move-badge--negative"}`}
+                      >
+                        {uncertainNext}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="dc-move-section">
+                    <h4 className="dc-move-section-title">3. Final Position Summary</h4>
+                    <div className="dc-move-summary">
+                      <div className="dc-move-summary-row">
+                        <span className="dc-move-summary-label">Offensive Position</span>
+                        <div className="dc-move-summary-values">
+                          <span className="dc-move-summary-value">{moveModalState.startingOffensivePosition}</span>
+                          <span className="dc-move-arrow" aria-hidden="true">
+                            →
+                          </span>
+                          <span
+                            className={`dc-move-summary-value dc-move-summary-value--${offensiveTone}`}
+                          >
+                            {newOffensive}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="dc-move-summary-row">
+                        <span className="dc-move-summary-label">Defensive Position</span>
+                        <div className="dc-move-summary-values">
+                          <span className="dc-move-summary-value">{moveModalState.startingDefensivePosition}</span>
+                          <span className="dc-move-arrow" aria-hidden="true">
+                            →
+                          </span>
+                          <span
+                            className={`dc-move-summary-value dc-move-summary-value--${defensiveTone}`}
+                          >
+                            {newDefensive}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="dc-modal-buttons">
+                    <button type="button" className="dc-btn dc-btn--accent" onClick={handleConfirmMove}>
+                      Confirm Move
+                    </button>
+                    <button type="button" className="dc-btn" onClick={handleCancelMove}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        : null}
 
       {/* Covering Fire Target Selection Modal */}
       {coveringFireModalTrooper ? (
