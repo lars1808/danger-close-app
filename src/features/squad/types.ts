@@ -3,6 +3,15 @@ export type Status = 'OK' | 'Grazed' | 'Wounded' | 'Bleeding Out' | 'Dead';
 export type OffensivePosition = 'Flanking' | 'Engaged' | 'Limited';
 export type DefensivePosition = 'Fortified' | 'In Cover' | 'Flanked';
 
+export type Position = OffensivePosition | DefensivePosition;
+
+export interface MoveResult {
+  guaranteedPosition: Position;
+  uncertainPosition: Position;
+  diceRolls: number[];
+  gritSpent: boolean;
+}
+
 export type TrooperIntent =
   | 'Fire'
   | 'Move Up'
