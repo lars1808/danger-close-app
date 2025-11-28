@@ -8,23 +8,4 @@ Danger Close is a tabletop companion that keeps your skirmishes organized. The a
 - **Dice tray** with quick d6 rolls and history so you can keep your hands on the table.
 - **Rules reference** panel for keeping custom reminders a click away.
 
-## Running the app
 
-Install dependencies and start the Vite dev server:
-
-```bash
-npm install
-npm run dev
-```
-
-Build for production:
-
-```bash
-npm run build
-```
-
-Lint the project:
-
-```bash
-npm run lint
-```
